@@ -1,7 +1,6 @@
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, ChevronRight, Check, X, Sparkles, ScanLine, Info, ArrowUpCircle, Lock } from 'lucide-react';
+import { Camera, ChevronRight, Check, X, Sparkles, ScanLine, Info, ArrowUpCircle, Lock, PlusCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 import { n8nService } from '../services/n8nService';
 import { ProductScanResult, DiagnosisResult, UserProfile } from '../types';
@@ -16,6 +15,19 @@ export const Scan: React.FC = () => {
   const [result, setResult] = useState<ProductScanResult | null>(null);
   const [showIntro, setShowIntro] = useState(true);
 
+  // Safe User Check
+  const getUser = (): UserProfile | null => {
+      try {
+          const userStr = localStorage.getItem('gloova_user');
+          return userStr ? JSON.parse(userStr) : null;
+      } catch {
+          return null;
+      }
+  };
+
+  const user = getUser();
+  const canScan = user ? hasCredit(user, 'scan') : false;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -29,36 +41,21 @@ export const Scan: React.FC = () => {
     }
   };
 
-  const checkCreditBeforeAction = () => {
-    const userStr = localStorage.getItem('gloova_user');
-    if (!userStr) return false;
-    const user: UserProfile = JSON.parse(userStr);
-    
-    if (!hasCredit(user, 'scan')) {
-        const confirm = window.confirm("Você não tem créditos de Scan suficientes. Deseja adquirir mais?");
-        if (confirm) navigate('/profile');
-        return false;
-    }
-    return true;
-  };
-
   const handleScan = async () => {
     if (!imagePreview) return;
-    if (!checkCreditBeforeAction()) return;
-
+    
     setIsLoading(true);
     try {
       const storedDiag = localStorage.getItem('gloova_last_diagnosis');
       const diag: DiagnosisResult | null = storedDiag ? JSON.parse(storedDiag) : null;
-      const userStr = localStorage.getItem('gloova_user');
-      const user = userStr ? JSON.parse(userStr) : { id: 'guest', memory_key: 'temp' };
-
+      
       const payload = {
-        user_id: user.id,
+        user_id: user?.id || 'guest',
         image_base64: imagePreview,
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
-        memory_key: user.memory_key
+        memory_key: user?.memory_key || 'temp',
+        conversation_id: user?.id // Context key
       };
 
       const scanResult = await n8nService.scanProduct(payload);
@@ -81,10 +78,37 @@ export const Scan: React.FC = () => {
   };
 
   const onCameraClick = () => {
-    if (checkCreditBeforeAction()) {
+    if (canScan) {
         fileInputRef.current?.click();
+    } else {
+        navigate('/profile'); // Fallback redirection
     }
   };
+
+  // PAYWALL VIEW (NO CREDITS)
+  if (user && !canScan) {
+      return (
+        <div className="p-6 max-w-md mx-auto h-full flex flex-col items-center justify-center text-center animate-fade-in pb-24">
+            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 relative">
+                <ScanLine size={40} className="text-slate-400" />
+                <div className="absolute top-0 right-0 bg-purple-600 p-2 rounded-full border-4 border-white">
+                    <Lock size={16} className="text-white" />
+                </div>
+            </div>
+            <h2 className="text-2xl font-extrabold text-slate-900 mb-3">Scanner Bloqueado</h2>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed max-w-xs">
+                Você utilizou todos os seus créditos de análise de produtos. Recarregue para continuar descobrindo o que é melhor para seu cabelo.
+            </p>
+            
+            <Button onClick={() => navigate('/profile')} className="shadow-purple-600/30 bg-purple-600 hover:bg-purple-700">
+                <div className="flex items-center gap-2">
+                    <span>Adicionar Scans</span>
+                    <PlusCircle size={20} />
+                </div>
+            </Button>
+        </div>
+      );
+  }
 
   // 1. RESULT VIEW
   if (result) {
@@ -164,7 +188,15 @@ export const Scan: React.FC = () => {
                         <p className="text-xs text-slate-500 leading-relaxed mt-1">Reconhecemos o produto pelo rótulo ou embalagem automaticamente.</p>
                     </div>
                 </div>
-                {/* ... existing features list ... */}
+                <div className="flex gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                        <Check size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-slate-900">Compatibilidade</h3>
+                        <p className="text-xs text-slate-500 leading-relaxed mt-1">Dizemos se ele combina com a fase atual do seu cronograma.</p>
+                    </div>
+                </div>
             </div>
 
             <div className="mt-auto mb-8">
@@ -182,6 +214,9 @@ export const Scan: React.FC = () => {
                     capture="environment"
                     onChange={handleFileChange}
                 />
+                <p className="text-center text-[10px] text-slate-400 mt-3 font-bold uppercase tracking-wide">
+                    Você tem {user?.scan_credits || 0} scans disponíveis
+                </p>
             </div>
         </div>
       );
