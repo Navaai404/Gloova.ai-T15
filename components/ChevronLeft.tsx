@@ -1,0 +1,1 @@
+// This file is not needed as we use lucide-react directly, but maintained for consistency if it existed.

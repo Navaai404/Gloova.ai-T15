@@ -1,0 +1,8 @@
+{
+  "name": "15 Gloova.AI Pré final",
+  "description": "Smart Hair Diagnosis and Treatment Protocol App powered by AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
