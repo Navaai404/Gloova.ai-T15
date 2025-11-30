@@ -1,8 +1,8 @@
-const CACHE_NAME = 'gloova-v3';
+const CACHE_NAME = 'gloova-v5-icon'; // Versão incrementada para forçar atualização
 const urlsToCache = [
   '/',
   '/index.html',
-  '/icon-512.png'
+  '/icon-512.png' // Agora o ícone será cacheado
 ];
 
 self.addEventListener('install', (event) => {
@@ -26,6 +26,21 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Estratégia Stale-While-Revalidate para imagens
+  if (event.request.destination === 'image') {
+     event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+           const fetchPromise = fetch(event.request).then((networkResponse) => {
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
+              return networkResponse;
+           });
+           return cachedResponse || fetchPromise;
+        })
+     );
+     return;
+  }
+
+  // Estratégia Padrão
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

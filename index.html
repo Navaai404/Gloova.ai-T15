@@ -10,12 +10,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gloova.ai">
     
-    <!-- Manifest Link (Versão 3 para quebrar cache) -->
-    <link rel="manifest" href="/manifest.json?v=3">
+    <!-- Manifest Link -->
+    <link rel="manifest" href="/manifest.json">
     
-    <!-- Icons (Versão 3 para obrigar o iPhone a baixar a imagem) -->
-    <link rel="icon" type="image/png" href="/icon-512.png?v=3">
-    <link rel="apple-touch-icon" href="/icon-512.png?v=3">
+    <!-- Icons (SVG Data URI: Logo G Original do App) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232563eb'/%3E%3Cg transform='scale(21.3) translate(0,0)'%3E%3Cpath d='M15 11.5V15H12.5C10.8 15 9.5 13.8 9.5 12C9.5 10.2 10.8 9 12.5 9C13.7 9 14.5 9.6 14.8 10.3' stroke='white' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/g%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232563eb'/%3E%3Cg transform='scale(21.3) translate(0,0)'%3E%3Cpath d='M15 11.5V15H12.5C10.8 15 9.5 13.8 9.5 12C9.5 10.2 10.8 9 12.5 9C13.7 9 14.5 9.6 14.8 10.3' stroke='white' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/g%3E%3C/svg%3E">
     
     <!-- SECURITY & PERFORMANCE -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
@@ -24,13 +24,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-      body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8fafc;
+      }
       /* Hide scrollbar for clean UI */
-      .no-scrollbar::-webkit-scrollbar { display: none; }
-      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
       /* iOS Safe Area support */
-      .safe-area-top { padding-top: env(safe-area-inset-top); }
-      .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+      .safe-area-top {
+        padding-top: env(safe-area-inset-top);
+      }
+      .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
     </style>
   <script type="importmap">
 {
@@ -41,7 +53,9 @@
     "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.84.0"
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.84.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>
@@ -56,7 +70,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registrado!', reg))
+            .then(reg => console.log('SW registrado!'))
             .catch(err => console.log('SW falhou:', err));
         });
       }
