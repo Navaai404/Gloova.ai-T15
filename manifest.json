@@ -2,19 +2,21 @@
   "name": "Gloova.ai - Inteligência Capilar",
   "short_name": "Gloova.ai",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
   "description": "Diagnóstico capilar e cronograma personalizado com IA.",
   "icons": [
     {
-      "src": "/icon-512.png",
+      "src": "/icon-512.png?v=2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-512.png?v=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
