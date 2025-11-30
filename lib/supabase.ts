@@ -27,14 +27,9 @@ const getEnvSafe = (key: string) => {
 let supabaseUrl = getDynamicConfig('gloova_config_supabase_url') || getEnvSafe('VITE_SUPABASE_URL');
 let supabaseKey = getDynamicConfig('gloova_config_supabase_key') || getEnvSafe('VITE_SUPABASE_ANON_KEY');
 
-// Validação básica de URL
-const isValidUrl = (url: string | undefined | null) => {
-    try {
-        return url && url.startsWith('http') && !url.includes('placeholder');
-    } catch {
-        return false;
-    }
-};
+// LOG DE DEPURAÇÃO (Verifique o console F12 se der erro)
+console.log("🔌 Supabase Init:", supabaseUrl ? "URL Encontrada" : "URL Ausente", supabaseKey ? "Key Encontrada" : "Key Ausente");
+if (supabaseUrl) console.log("🔌 Conectando em:", supabaseUrl);
 
 // Fallback values
 const FALLBACK_URL = 'https://placeholder.supabase.co';
@@ -42,18 +37,17 @@ const FALLBACK_KEY = 'placeholder';
 
 let client;
 
-// TENTATIVA BLINDADA DE CRIAÇÃO DO CLIENTE
 try {
-    if (isValidUrl(supabaseUrl) && supabaseKey) {
+    // Validação básica
+    if (supabaseUrl && supabaseUrl.startsWith('http') && supabaseKey) {
         client = createClient(supabaseUrl, supabaseKey);
     } else {
-        throw new Error("Invalid credentials");
+        console.warn("⚠️ Credenciais inválidas ou ausentes. Usando Mock.");
+        supabaseUrl = FALLBACK_URL;
+        client = createClient(FALLBACK_URL, FALLBACK_KEY);
     }
 } catch (error) {
-    console.warn("⚠️ Erro crítico ao iniciar Supabase. Revertendo para Modo Demo.", error);
-    // Se falhar, usa o fallback para não travar a aba do navegador
-    supabaseUrl = FALLBACK_URL;
-    supabaseKey = FALLBACK_KEY;
+    console.error("⚠️ Erro fatal Supabase:", error);
     client = createClient(FALLBACK_URL, FALLBACK_KEY);
 }
 
