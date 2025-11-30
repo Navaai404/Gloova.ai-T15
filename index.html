@@ -4,21 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
+    <!-- PWA & Mobile Settings -->
     <meta name="theme-color" content="#2563eb" />
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gloova.ai">
     
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/icon-512.png">
-    <link rel="apple-touch-icon" href="/icon-512.png">
+    <!-- Manifest Link (Versão 3 para quebrar cache) -->
+    <link rel="manifest" href="/manifest.json?v=3">
     
-    <title>Gloova.ai</title>
+    <!-- Icons (Versão 3 para obrigar o iPhone a baixar a imagem) -->
+    <link rel="icon" type="image/png" href="/icon-512.png?v=3">
+    <link rel="apple-touch-icon" href="/icon-512.png?v=3">
+    
+    <!-- SECURITY & PERFORMANCE -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    
+    <title>Gloova.AI - Hair Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
       body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+      /* Hide scrollbar for clean UI */
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      /* iOS Safe Area support */
       .safe-area-top { padding-top: env(safe-area-inset-top); }
       .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
     </style>
@@ -38,12 +48,17 @@
 </head>
   <body>
     <div id="root"></div>
+    <!-- INICIALIZAÇÃO DO APP -->
     <script type="module" src="/index.tsx"></script>
+    
+    <!-- REGISTRO DO SERVICE WORKER (PWA) -->
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-          .then(() => console.log('PWA Ready'))
-          .catch(err => console.log('PWA Error', err));
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registrado!', reg))
+            .catch(err => console.log('SW falhou:', err));
+        });
       }
     </script>
   </body>
