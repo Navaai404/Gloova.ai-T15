@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- CORREÇÃO DE SEGURANÇA (CSP) -->
+    <!-- Permite scripts externos, eval() e conexões com Supabase/N8N -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    
     <title>Gloova.AI - Hair Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
