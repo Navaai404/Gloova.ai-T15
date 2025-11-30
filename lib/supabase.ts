@@ -24,20 +24,35 @@ const getEnvSafe = (key: string) => {
 };
 
 // Prioridade: Config do Admin (LocalStorage) > Variáveis de Ambiente (.env)
-const supabaseUrl = getDynamicConfig('gloova_config_supabase_url') || getEnvSafe('VITE_SUPABASE_URL');
-const supabaseKey = getDynamicConfig('gloova_config_supabase_key') || getEnvSafe('VITE_SUPABASE_ANON_KEY');
+let supabaseUrl = getDynamicConfig('gloova_config_supabase_url') || getEnvSafe('VITE_SUPABASE_URL');
+let supabaseKey = getDynamicConfig('gloova_config_supabase_key') || getEnvSafe('VITE_SUPABASE_ANON_KEY');
 
-export const isMockMode = () => {
-  return !supabaseUrl || !supabaseKey;
-};
+// LOG DE DEPURAÇÃO (Verifique o console F12 se der erro)
+console.log("🔌 Supabase Init:", supabaseUrl ? "URL Encontrada" : "URL Ausente", supabaseKey ? "Key Encontrada" : "Key Ausente");
+if (supabaseUrl) console.log("🔌 Conectando em:", supabaseUrl);
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn("⚠️ Supabase Credentials Missing. App running in Mock Mode.");
+// Fallback values
+const FALLBACK_URL = 'https://placeholder.supabase.co';
+const FALLBACK_KEY = 'placeholder';
+
+let client;
+
+try {
+    // Validação básica
+    if (supabaseUrl && supabaseUrl.startsWith('http') && supabaseKey) {
+        client = createClient(supabaseUrl, supabaseKey);
+    } else {
+        console.warn("⚠️ Credenciais inválidas ou ausentes. Usando Mock.");
+        supabaseUrl = FALLBACK_URL;
+        client = createClient(FALLBACK_URL, FALLBACK_KEY);
+    }
+} catch (error) {
+    console.error("⚠️ Erro fatal Supabase:", error);
+    client = createClient(FALLBACK_URL, FALLBACK_KEY);
 }
 
-// Cria o cliente. Se as chaves faltarem, cria com valores dummy para não quebrar o app (cai no Mock Mode)
-// Em produção, as chaves virão das Environment Variables da Vercel.
-export const supabase = createClient(
-    supabaseUrl || 'https://placeholder.supabase.co', 
-    supabaseKey || 'placeholder'
-);
+export const isMockMode = () => {
+  return supabaseUrl === FALLBACK_URL;
+};
+
+export const supabase = client;
