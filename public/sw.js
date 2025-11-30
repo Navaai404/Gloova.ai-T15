@@ -1,7 +1,8 @@
-const CACHE_NAME = 'gloova-v6-rescue';
+const CACHE_NAME = 'gloova-v7-native';
 const urlsToCache = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,7 +26,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+  // Prioriza cache para imagens para performance, network para dados
+  if (event.request.destination === 'image') {
+     event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+           return cachedResponse || fetch(event.request);
+        })
+     );
+  } else {
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
+    );
+  }
 });
