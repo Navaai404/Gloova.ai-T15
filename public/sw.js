@@ -1,12 +1,11 @@
-const CACHE_NAME = 'gloova-live-v1';
+const CACHE_NAME = 'gloova-v6-rescue';
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/icon-512.png'
+  '/index.html'
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Força ativação imediata
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
   );

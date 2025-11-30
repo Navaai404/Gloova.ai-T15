@@ -10,12 +10,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gloova.ai">
     
-    <!-- Manifest Link (Cache Busting) -->
-    <link rel="manifest" href="/manifest.json?v=GO_LIVE_1">
+    <!-- Manifest Link -->
+    <link rel="manifest" href="/manifest.json?v=RESCUE">
     
-    <!-- Icons -->
-    <link rel="icon" type="image/png" href="/icon-512.png?v=GO_LIVE_1">
-    <link rel="apple-touch-icon" href="/icon-512.png?v=GO_LIVE_1">
+    <!-- Icons (CDN Link) -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2652/2652218.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2652/2652218.png">
     
     <!-- SECURITY & PERFORMANCE -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
@@ -69,9 +69,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // Usa caminho relativo e trata erros
-          navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('✅ PWA Pronto:', reg.scope))
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('✅ PWA Pronto'))
             .catch(err => console.log('⚠️ PWA Erro:', err));
         });
       }
