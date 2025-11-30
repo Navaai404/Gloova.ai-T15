@@ -12,39 +12,25 @@ export const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState(''); // Novo estado para WhatsApp
+  const [whatsapp, setWhatsapp] = useState(''); 
   const [inviteCode, setInviteCode] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmationMessage, setShowConfirmationMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleMockLogin = () => {
-    console.log("⚠️ Usando Login Simulado");
-    const mockUser = {
-        id: 'demo_user_123',
-        email: email || 'demo@gloova.ai',
-        name: name || 'Usuário Demo',
-        subscription_tier: 'basic',
-        chat_credits: PLANS.basic.limits.tokens,
-        diagnosis_credits: PLANS.basic.limits.diagnosis,
-        scan_credits: PLANS.basic.limits.scans,
-        points: 0,
-        referral_code: 'DEMO123',
-        isAdmin: email === 'admin@gloova.ai' || email === 'jardel100dias@hotmail.com'
-    };
-    localStorage.setItem('gloova_user', JSON.stringify(mockUser));
-    navigate(isLogin ? '/home' : '/onboarding');
-  };
-
+  // Função Mock removida para produção (se houver falha crítica, exibe erro ao usuário em vez de bypass)
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setShowConfirmationMessage(false);
     setErrorMessage(null);
 
+    // Em produção, se isMockMode for true (chaves ausentes), impede login e avisa admin
     if (isMockMode()) {
-        setTimeout(() => { handleMockLogin(); setIsLoading(false); }, 1000);
+        setErrorMessage("Erro de Configuração: Chaves do Supabase não encontradas. Contate o suporte.");
+        setIsLoading(false);
         return;
     }
 
@@ -60,7 +46,7 @@ export const Auth: React.FC = () => {
             if (profile) {
                 localStorage.setItem('gloova_user', JSON.stringify(profile));
             } else {
-                // Auto-healing: Cria perfil se o usuário existir na Auth mas não na tabela profiles
+                // Auto-healing
                 const newProfile = {
                     id: data.user.id,
                     email: data.user.email,
@@ -84,7 +70,6 @@ export const Auth: React.FC = () => {
 
         if (data.user) {
             // Atualiza perfil com dados extras (WhatsApp e Referral)
-            // Pequeno delay para garantir que o trigger do banco rodou primeiro
             setTimeout(async () => {
                 await supabase
                     .from('profiles')
@@ -118,12 +103,10 @@ export const Auth: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Auth Error:", error);
-      if (error.message.includes("Invalid login credentials")) {
-          setErrorMessage("E-mail ou senha incorretos. Se você acabou de configurar o banco, cadastre-se novamente.");
-      }
+      if (error.message.includes("Invalid login credentials")) setErrorMessage("E-mail ou senha incorretos.");
       else if (error.message.includes("Email not confirmed")) setErrorMessage("E-mail não confirmado. Verifique sua caixa de entrada.");
       else if (error.message.includes("User already registered")) { setErrorMessage("Este e-mail já possui conta. Tente entrar."); setIsLogin(true); }
-      else if (error.message.includes("Failed to fetch")) { const c = window.confirm("Falha na conexão. Entrar no Modo Demo?"); if (c) handleMockLogin(); }
+      else if (error.message.includes("Failed to fetch")) setErrorMessage("Erro de conexão. Verifique sua internet.");
       else setErrorMessage(`Erro: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -169,7 +152,6 @@ export const Auth: React.FC = () => {
                     <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-100 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium outline-none focus:ring-2 focus:ring-blue-500" placeholder="seu@email.com" />
                 </div>
 
-                {/* CAMPO WHATSAPP */}
                 {!isLogin && (
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1 flex items-center gap-1"><Phone size={12} /> WhatsApp</label>
@@ -192,7 +174,7 @@ export const Auth: React.FC = () => {
                 <div className="pt-4"><Button type="submit" isLoading={isLoading} className="shadow-xl shadow-blue-500/20">{isLogin ? 'Acessar App' : 'Criar Conta Grátis'}</Button></div>
             </form>
             
-            <div className="w-full text-center mt-2"><button onClick={handleMockLogin} className="text-[10px] text-slate-300 hover:text-slate-500 underline decoration-dotted">Entrar como Convidado</button></div>
+            {/* Botão Demo removido para forçar login real */}
             <p className="text-center text-xs text-slate-400 mt-4">Ao continuar, você concorda com nossos Termos de Uso.</p>
             </>
         )}
