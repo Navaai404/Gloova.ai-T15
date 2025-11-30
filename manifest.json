@@ -8,14 +8,14 @@
   "description": "Diagnóstico capilar e cronograma personalizado com IA.",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2652/2652218.png",
+      "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232563eb'/%3E%3Cpath d='M256 420C350 420 430 340 430 256C430 160 350 90 256 90C160 90 90 160 90 256C90 350 160 420 256 420Z' stroke='white' stroke-width='0' fill-opacity='0'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='bold' font-size='320' fill='white'%3EG%3C/text%3E%3C/svg%3E",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2652/2652218.png",
+      "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232563eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='bold' font-size='320' fill='white'%3EG%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml"
     }
   ],
   "orientation": "portrait"
