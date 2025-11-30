@@ -1,4 +1,3 @@
-
 import { UserProfile } from "../types";
 
 export const PLANS = {
@@ -71,10 +70,23 @@ export const PACKAGES = {
 
 // --- Logic ---
 
+// Lista de Super Admins com acesso ilimitado
+const SUPER_ADMINS = [
+  'admin@gloova.ai',
+  'jardel100dias@hotmail.com'
+];
+
 export const hasCredit = (user: UserProfile, type: 'chat' | 'diagnosis' | 'scan'): boolean => {
+  // 1. Super Admin Bypass (Uso Ilimitado para testes)
+  if (user.email && SUPER_ADMINS.some(admin => admin.toLowerCase() === user.email.toLowerCase())) {
+      return true; 
+  }
+
+  // 2. Verificação Normal de Saldo
   if (type === 'chat') return (user.chat_credits || 0) > 0;
   if (type === 'diagnosis') return (user.diagnosis_credits || 0) > 0;
   if (type === 'scan') return (user.scan_credits || 0) > 0;
+  
   return false;
 };
 
@@ -83,6 +95,12 @@ export const deductCredit = (type: 'chat' | 'diagnosis' | 'scan', amount: number
   if (!userStr) return;
 
   const user: UserProfile = JSON.parse(userStr);
+  
+  // Se for Super Admin, não deduz crédito (mantém infinito)
+  if (user.email && SUPER_ADMINS.some(admin => admin.toLowerCase() === user.email.toLowerCase())) {
+      return;
+  }
+
   let updatedUser = { ...user };
 
   if (type === 'chat') {
@@ -95,7 +113,7 @@ export const deductCredit = (type: 'chat' | 'diagnosis' | 'scan', amount: number
 
   localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
   
-  // Trigger update event
+  // Trigger update event so UI refreshes
   window.dispatchEvent(new CustomEvent('points-updated', { detail: { updated: true } }));
 };
 
@@ -104,6 +122,7 @@ export const calculateChatCost = (responseLength: number) => {
   return Math.ceil(responseLength / 30);
 };
 
+// Função auxiliar para dar créditos (usada no Gamification e Admin)
 export const buyPackage = (type: 'chat' | 'diagnosis' | 'scan', qty: number) => {
   const userStr = localStorage.getItem('gloova_user');
   if (!userStr) return;
@@ -115,6 +134,8 @@ export const buyPackage = (type: 'chat' | 'diagnosis' | 'scan', qty: number) => 
   if (type === 'scan') updatedUser.scan_credits = (user.scan_credits || 0) + qty;
 
   localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
-  window.dispatchEvent(new CustomEvent('points-updated', { detail: { updated: true } }));
-  alert('Compra realizada com sucesso!');
+  
+  // Se não for chamado internamente (sem alert), mostra sucesso
+  // window.dispatchEvent(new CustomEvent('points-updated', { detail: { updated: true } }));
+  // alert('Créditos adicionados com sucesso!');
 };

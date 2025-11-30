@@ -6,7 +6,8 @@ export const POINTS = {
   SCAN: 10,
   CHAT: 2,
   CALENDAR_SYNC: 20,
-  WELCOME: 100
+  WELCOME: 100,
+  REFERRAL_BONUS: 500 // Pontos dados ao padrinho quando o indicado paga
 };
 
 export interface RewardItem {
@@ -93,8 +94,9 @@ export const redeemReward = (rewardId: string, cost: number): boolean => {
   // Deduct points
   const newPoints = currentPoints - cost;
   
-  // Add to redeemed list (history)
-  const currentRedeemed = user.redeemed_rewards || [];
+  // Add to redeemed list (history) - Allows repeat redemption for credits
+  // const currentRedeemed = user.redeemed_rewards || []; 
+  // Not blocking repeated redemption for consumable rewards
   
   // Find reward definition to apply effect
   const reward = REWARDS_LIST.find(r => r.id === rewardId);
@@ -107,7 +109,7 @@ export const redeemReward = (rewardId: string, cost: number): boolean => {
   const updatedUser: UserProfile = { 
     ...user, 
     points: newPoints,
-    redeemed_rewards: [...currentRedeemed, rewardId] // Keeps history
+    // redeemed_rewards: [...currentRedeemed, rewardId] // Optional history tracking
   };
 
   localStorage.setItem('gloova_user', JSON.stringify(updatedUser));

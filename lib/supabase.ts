@@ -1,40 +1,64 @@
 import { createClient } from '@supabase/supabase-js';
 
-// URL e Chave fornecidas pelo usuário
-const PROJECT_URL = 'https://vqqmimgdziakrpoekspw.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxcW1pbWdkemlha3Jwb2Vrc3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMjc4ODEsImV4cCI6MjA3ODgwMzg4MX0.TRcgrTBjcnNLmv4Br4dLhd83grsM-Xk2q8WPm0Znh5c';
+// Função para buscar configurações dinâmicas (definidas no Painel Admin)
+const getDynamicConfig = (key: string) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? item.trim() : null;
+  } catch {
+    return null;
+  }
+};
 
-// Função segura para tentar ler variáveis de ambiente sem quebrar o app
+// Função segura para tentar ler variáveis de ambiente
 const getEnvSafe = (key: string) => {
   try {
-    // Verifica Vite
     if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
       return (import.meta as any).env[key];
     }
-    // Verifica Process (Node/CRA) - Apenas se process estiver definido
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
       return process.env[key];
     }
-  } catch (e) {
-    // Ignora erros de acesso
-  }
+  } catch (e) { }
   return undefined;
 };
 
-const envUrl = getEnvSafe('VITE_SUPABASE_URL') || getEnvSafe('REACT_APP_SUPABASE_URL');
-const envKey = getEnvSafe('VITE_SUPABASE_ANON_KEY') || getEnvSafe('REACT_APP_SUPABASE_ANON_KEY');
+// Prioridade: Config do Admin (LocalStorage) > Variáveis de Ambiente (.env)
+let supabaseUrl = getDynamicConfig('gloova_config_supabase_url') || getEnvSafe('VITE_SUPABASE_URL');
+let supabaseKey = getDynamicConfig('gloova_config_supabase_key') || getEnvSafe('VITE_SUPABASE_ANON_KEY');
 
-const supabaseUrl = envUrl || PROJECT_URL;
-const supabaseKey = envKey || ANON_KEY;
-
-// Função auxiliar para verificar se estamos em modo mock
-export const isMockMode = () => {
-  // Se a URL for vazia ou placeholder, estamos em mock
-  return !supabaseUrl || supabaseUrl.includes('placeholder');
+// Validação básica de URL
+const isValidUrl = (url: string | undefined | null) => {
+    try {
+        return url && url.startsWith('http') && !url.includes('placeholder');
+    } catch {
+        return false;
+    }
 };
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn("⚠️ Supabase Credentials Missing. App running in Mock Mode.");
+// Fallback values
+const FALLBACK_URL = 'https://placeholder.supabase.co';
+const FALLBACK_KEY = 'placeholder';
+
+let client;
+
+// TENTATIVA BLINDADA DE CRIAÇÃO DO CLIENTE
+try {
+    if (isValidUrl(supabaseUrl) && supabaseKey) {
+        client = createClient(supabaseUrl, supabaseKey);
+    } else {
+        throw new Error("Invalid credentials");
+    }
+} catch (error) {
+    console.warn("⚠️ Erro crítico ao iniciar Supabase. Revertendo para Modo Demo.", error);
+    // Se falhar, usa o fallback para não travar a aba do navegador
+    supabaseUrl = FALLBACK_URL;
+    supabaseKey = FALLBACK_KEY;
+    client = createClient(FALLBACK_URL, FALLBACK_KEY);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const isMockMode = () => {
+  return supabaseUrl === FALLBACK_URL;
+};
+
+export const supabase = client;

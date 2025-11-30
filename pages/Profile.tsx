@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Trophy, ChevronRight, ChevronLeft, Check, Gift, ShoppingBag, Wallet, ScanLine, MessageSquare, PlusCircle, Zap, Crown, Sparkles, Lock } from 'lucide-react';
 import { Button } from '../components/Button';
-import { getLevel, REWARDS_LIST, redeemReward, RewardItem } from '../services/gamification';
+import { getLevel, REWARDS_LIST, redeemReward, RewardItem, POINTS } from '../services/gamification';
 import { PLANS, PACKAGES, buyPackage } from '../services/monetization';
 import { UserProfile } from '../types';
 import { PaymentModal } from '../components/PaymentModal';
+import { supabase } from '../lib/supabase';
 
 // --- CONFIGURAÇÃO DE ADMINISTRADORES ---
-// Adicione seu e-mail pessoal dentro desta lista, entre aspas.
 const ADMIN_EMAILS = [
   'admin@gloova.ai', 
   'jardel100dias@hotmail.com'
@@ -39,7 +39,6 @@ export const Profile: React.FC = () => {
 
   if (!user) return null;
 
-  // Verifica Admin (Case insensitive)
   const isAdmin = ADMIN_EMAILS.some(admin => admin.toLowerCase().trim() === (user.email || '').toLowerCase().trim());
 
   const handleLogout = () => {
@@ -47,10 +46,9 @@ export const Profile: React.FC = () => {
     navigate('/');
   };
 
-  // -- Payment Handlers with External Links Support --
+  // -- Payment Handlers --
 
   const initiateUpgrade = (tier: 'advanced' | 'premium', plan: any) => {
-    // 1. Verifica se existe Link Externo configurado no Admin
     let linkToUse = '';
     if (tier === 'advanced') linkToUse = localStorage.getItem('gloova_link_advanced') || '';
     if (tier === 'premium') linkToUse = localStorage.getItem('gloova_link_premium') || '';
@@ -61,7 +59,6 @@ export const Profile: React.FC = () => {
         return;
     }
 
-    // 2. Se não tiver link, segue fluxo interno (Modal)
     const price = billingCycle === 'monthly' ? plan.price : plan.annualPrice;
     setPendingItem({
         name: `Plano ${plan.name} (${billingCycle === 'monthly' ? 'Mensal' : 'Anual'})`,
@@ -73,9 +70,7 @@ export const Profile: React.FC = () => {
   };
 
   const initiatePackageBuy = (type: 'chat' | 'diagnosis' | 'scan', qty: number, price: number, label: string) => {
-    // 1. Verifica Link Genérico de Créditos
     const externalLink = localStorage.getItem('gloova_link_credits');
-    
     if (externalLink && externalLink.startsWith('http')) {
         window.open(externalLink, '_blank');
         return;
@@ -91,12 +86,15 @@ export const Profile: React.FC = () => {
     setIsPaymentOpen(true);
   };
 
-  const handlePaymentSuccess = () => {
+  // --- LÓGICA DE SUCESSO DE PAGAMENTO & RECOMPENSA REFERRAL ---
+  const handlePaymentSuccess = async () => {
     if (!pendingItem) return;
 
     if (pendingItem.type === 'sub') {
         const tier = pendingItem.subTier;
         const planLimits = PLANS[tier].limits;
+        
+        // 1. Atualiza o usuário localmente
         const updated = { 
             ...user, 
             subscription_tier: tier,
@@ -106,6 +104,40 @@ export const Profile: React.FC = () => {
         };
         setUser(updated);
         localStorage.setItem('gloova_user', JSON.stringify(updated));
+
+        // 2. LÓGICA DE RECOMPENSA DO PADRINHO (REFERRAL)
+        // Verifica se é a primeira vez que ele assina (estava no free) e se tem padrinho
+        const isFirstSub = user.subscription_tier === 'free' || user.subscription_tier === 'basic'; // Assumindo upgrade
+        
+        if (isFirstSub && user.referred_by) {
+             // Evita pagar duas vezes (usa uma flag local ou verifica histórico no banco idealmente)
+             const alreadyRewarded = localStorage.getItem('referral_reward_given');
+             
+             if (!alreadyRewarded) {
+                 console.log(`Giving ${POINTS.REFERRAL_BONUS} points to referrer: ${user.referred_by}`);
+                 
+                 // Busca o padrinho pelo código
+                 const { data: referrer } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('referral_code', user.referred_by)
+                    .single();
+                 
+                 if (referrer) {
+                     // Dá os pontos ao padrinho
+                     const newPoints = (referrer.points || 0) + POINTS.REFERRAL_BONUS;
+                     await supabase
+                        .from('profiles')
+                        .update({ points: newPoints })
+                        .eq('id', referrer.id);
+                     
+                     localStorage.setItem('referral_reward_given', 'true');
+                     // Opcional: Notificar o usuário atual que ele ajudou o amigo
+                     alert(`Parabéns pela assinatura! Seu amigo (código ${user.referred_by}) acabou de ganhar ${POINTS.REFERRAL_BONUS} pontos graças a você! 🎉`);
+                 }
+             }
+        }
+
     } else if (pendingItem.type === 'pkg') {
         buyPackage(pendingItem.pkgType, pendingItem.pkgQty!);
     }
@@ -127,8 +159,19 @@ export const Profile: React.FC = () => {
   const renderRewards = () => (
     <div className="animate-fade-in">
       <div className="flex items-center mb-6"><button onClick={() => setCurrentView('main')} className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors"><ChevronLeft className="text-slate-600" /></button><h1 className="text-xl font-bold ml-2 text-slate-800">Recompensas</h1></div>
-      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-lg mb-6 sticky top-0 z-10"><div className="flex justify-between items-center"><div><p className="text-slate-400 text-xs font-bold uppercase mb-1">Seu Saldo</p><div className="flex items-center gap-2"><Trophy className="text-yellow-400" size={24} /><span className="text-3xl font-bold text-white">{points}</span></div></div><div className="text-right"><p className="text-slate-400 text-xs font-bold uppercase mb-1">Nível</p><span className="bg-white/10 px-3 py-1 rounded-full text-sm font-semibold border border-white/20">{level.name}</span></div></div></div>
-      <div className="space-y-3">{REWARDS_LIST.map((reward) => { const isRedeemed = (user.redeemed_rewards || []).includes(reward.id); const canAfford = points >= reward.cost; return (<div key={reward.id} className={`bg-white p-4 rounded-xl border ${isRedeemed ? 'border-green-200 bg-green-50/30' : 'border-slate-100'} shadow-sm flex flex-col gap-3`}><div className="flex justify-between items-start"><div className="flex gap-3"><div className={`p-3 rounded-xl ${isRedeemed ? 'bg-green-100' : 'bg-slate-50'}`}><Gift size={20} className="text-blue-500" /></div><div><h4 className="font-bold text-slate-800">{reward.title}</h4><p className="text-xs text-slate-500 mt-1">{reward.description}</p></div></div></div><div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-1"><span className={`text-sm font-bold ${isRedeemed ? 'text-green-600' : 'text-slate-500'}`}>{isRedeemed ? 'Resgatado' : `${reward.cost} pts`}</span>{isRedeemed ? (<div className="flex items-center gap-1 text-green-600 text-sm font-bold bg-green-100 px-3 py-1.5 rounded-lg"><Check size={16} /> Ativo</div>) : (<button onClick={() => handleRedeem(reward)} disabled={!canAfford} className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${canAfford ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 shadow-md' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>{canAfford ? 'Resgatar' : <Lock size={14} />}</button>)}</div></div>); })}</div>
+      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-lg mb-6 sticky top-0 z-10">
+          <div className="flex justify-between items-center">
+              <div>
+                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">Seu Saldo</p>
+                  <div className="flex items-center gap-2"><Trophy className="text-yellow-400" size={24} /><span className="text-3xl font-bold text-white">{points}</span></div>
+              </div>
+              <div className="text-right">
+                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">Nível Atual</p>
+                  <span className="bg-white/10 px-3 py-1 rounded-full text-sm font-semibold border border-white/20 text-yellow-300">{level.name}</span>
+              </div>
+          </div>
+      </div>
+      <div className="space-y-3">{REWARDS_LIST.map((reward) => { const canAfford = points >= reward.cost; return (<div key={reward.id} className={`bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-3`}><div className="flex justify-between items-start"><div className="flex gap-3"><div className={`p-3 rounded-xl bg-slate-50`}><Gift size={20} className="text-blue-500" /></div><div><h4 className="font-bold text-slate-800">{reward.title}</h4><p className="text-xs text-slate-500 mt-1">{reward.description}</p></div></div></div><div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-1"><span className={`text-sm font-bold ${canAfford ? 'text-green-600' : 'text-slate-400'}`}>{reward.cost} pts</span><button onClick={() => handleRedeem(reward)} disabled={!canAfford} className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${canAfford ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 shadow-md' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>{canAfford ? 'Resgatar' : <Lock size={14} />}</button></div></div>); })}</div>
     </div>
   );
 
@@ -165,7 +208,13 @@ export const Profile: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900 mb-6">Meu Perfil</h1>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 mb-6 relative overflow-hidden">
             <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-bold shrink-0">{user.name ? user.name[0].toUpperCase() : 'U'}</div>
-            <div className="overflow-hidden relative z-10"><h2 className="font-bold text-lg truncate flex items-center gap-2">{user.name}{isPremium && <Crown size={16} className="text-yellow-500 fill-yellow-500" />}</h2><p className="text-slate-500 text-sm truncate mb-1">{user.email}</p><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold uppercase">{planDetails.name}</span></div>
+            <div className="overflow-hidden relative z-10"><h2 className="font-bold text-lg truncate flex items-center gap-2">{user.name}{isPremium && <Crown size={16} className="text-yellow-500 fill-yellow-500" />}</h2><p className="text-slate-500 text-sm truncate mb-1">{user.email}</p>
+            {/* NOVO: Exibe o nível ao lado do plano */}
+            <div className="flex gap-2 mt-1">
+                <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold uppercase">{planDetails.name}</span>
+                <span className="text-xs bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded font-bold uppercase border border-yellow-200">{level.name}</span>
+            </div>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-8">
              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-blue-200 transition-colors" onClick={() => setCurrentView('store')}><div className="flex items-center gap-2 mb-2 text-slate-500"><Wallet size={18} /><span className="text-xs font-bold uppercase">Créditos</span></div><p className="text-2xl font-bold text-slate-900">{user.chat_credits || 0}</p><div className="flex items-center gap-1 mt-1"><PlusCircle size={12} className="text-blue-600" /><p className="text-xs text-blue-600 font-bold">Recarregar</p></div></div>

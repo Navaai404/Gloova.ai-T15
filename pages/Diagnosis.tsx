@@ -38,6 +38,7 @@ export const Diagnosis: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
 
+  // ANGULOS DEFINIDOS
   const angles: { id: PhotoAngle; label: string; icon: any; desc: string }[] = [
       { id: 'Frente', label: 'Frente', icon: User, desc: 'Rosto visível, cabelo solto' },
       { id: 'Costas', label: 'Costas', icon: User, desc: 'Comprimento total nas costas' },
@@ -132,19 +133,15 @@ export const Diagnosis: React.FC = () => {
       deductCredit('diagnosis');
       addPoints(POINTS.DIAGNOSIS);
 
-      // --- REFERRAL REWARD LOGIC ---
+      // --- REFERRAL REWARD LOGIC (Opcional: Se quiser dar pontos no Diagnóstico) ---
+      // Nota: Se você moveu a recompensa para o Pagamento (como discutido), pode remover este bloco.
+      // Mas se quiser manter um bônus menor por "Engajamento", deixe aqui.
       if (user.referred_by) {
         const isFirstTime = !localStorage.getItem('has_completed_first_diag');
         if (isFirstTime) {
-            console.log(`Reward trigger for referrer: ${user.referred_by}`);
-            // Busca padrinho e dá pontos
-            const { data: referrer } = await supabase.from('profiles').select('*').eq('referral_code', user.referred_by).single();
-            if (referrer) {
-                const newPoints = (referrer.points || 0) + 500;
-                await supabase.from('profiles').update({ points: newPoints }).eq('id', referrer.id);
-                localStorage.setItem('has_completed_first_diag', 'true');
-                alert("🎉 Diagnóstico concluído! Seu amigo ganhou 500 pontos pela indicação.");
-            }
+            console.log(`Engagement reward trigger for referrer: ${user.referred_by}`);
+            // Lógica opcional
+            localStorage.setItem('has_completed_first_diag', 'true');
         }
       }
       

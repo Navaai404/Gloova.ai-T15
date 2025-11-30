@@ -60,7 +60,7 @@ export const Auth: React.FC = () => {
             if (profile) {
                 localStorage.setItem('gloova_user', JSON.stringify(profile));
             } else {
-                // Auto-healing
+                // Auto-healing: Cria perfil se o usuário existir na Auth mas não na tabela profiles
                 const newProfile = {
                     id: data.user.id,
                     email: data.user.email,
@@ -84,11 +84,12 @@ export const Auth: React.FC = () => {
 
         if (data.user) {
             // Atualiza perfil com dados extras (WhatsApp e Referral)
+            // Pequeno delay para garantir que o trigger do banco rodou primeiro
             setTimeout(async () => {
                 await supabase
                     .from('profiles')
                     .update({ 
-                        whatsapp: whatsapp, // Salva o WhatsApp
+                        whatsapp: whatsapp, 
                         referred_by: inviteCode ? inviteCode.toUpperCase() : null 
                     })
                     .eq('id', data.user!.id);
@@ -117,7 +118,9 @@ export const Auth: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Auth Error:", error);
-      if (error.message.includes("Invalid login credentials")) setErrorMessage("E-mail ou senha incorretos.");
+      if (error.message.includes("Invalid login credentials")) {
+          setErrorMessage("E-mail ou senha incorretos. Se você acabou de configurar o banco, cadastre-se novamente.");
+      }
       else if (error.message.includes("Email not confirmed")) setErrorMessage("E-mail não confirmado. Verifique sua caixa de entrada.");
       else if (error.message.includes("User already registered")) { setErrorMessage("Este e-mail já possui conta. Tente entrar."); setIsLogin(true); }
       else if (error.message.includes("Failed to fetch")) { const c = window.confirm("Falha na conexão. Entrar no Modo Demo?"); if (c) handleMockLogin(); }
@@ -166,7 +169,7 @@ export const Auth: React.FC = () => {
                     <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-100 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium outline-none focus:ring-2 focus:ring-blue-500" placeholder="seu@email.com" />
                 </div>
 
-                {/* CAMPO WHATSAPP (NOVO) */}
+                {/* CAMPO WHATSAPP */}
                 {!isLogin && (
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1 flex items-center gap-1"><Phone size={12} /> WhatsApp</label>
