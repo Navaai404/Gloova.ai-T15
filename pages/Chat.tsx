@@ -5,6 +5,7 @@ import { n8nService } from '../services/n8nService';
 import { ChatMessage, DiagnosisResult, UserProfile } from '../types';
 import { addPoints, POINTS } from '../services/gamification';
 import { hasCredit, deductCredit, calculateChatCost } from '../services/monetization';
+import { supabase } from '../lib/supabase';
 
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
@@ -73,10 +74,25 @@ export const Chat: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user.memory_key,
-        conversation_id: user.id
+        // CORREÇÃO: Envia null se não existir, para o N8N criar
+        conversation_id: user.conversation_id || undefined 
       });
       
       const aiResponseText = response.resposta;
+      
+      // Se o N8N retornou um novo ID de conversa, salva no perfil
+      if (response.conversation_id && response.conversation_id !== user.conversation_id) {
+          const updatedUser = { ...user, conversation_id: response.conversation_id };
+          localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
+          
+          // Atualiza no Supabase silenciosamente
+          if (user.id !== 'guest') {
+              supabase.from('profiles')
+                .update({ conversation_id: response.conversation_id })
+                .eq('id', user.id)
+                .then(() => console.log('Memory updated'));
+          }
+      }
       
       const cost = calculateChatCost(aiResponseText.length);
       deductCredit('chat', cost);
@@ -120,7 +136,6 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         
-        {/* Token Status */}
         {!canChat ? (
             <button onClick={() => navigate('/profile')} className="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-red-200 transition-colors animate-pulse">
                 <Lock size={12} /> Sem Tokens
@@ -132,7 +147,7 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* Chat Area - Adjusted padding to not hide behind input */}
+      {/* Chat Area */}
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-40" 
@@ -159,7 +174,6 @@ export const Chat: React.FC = () => {
           </div>
         )}
 
-        {/* Paywall Message */}
         {!canChat && (
             <div className="flex justify-center mt-4">
                 <div className="bg-slate-900 text-white text-xs py-2 px-4 rounded-full shadow-lg flex items-center gap-2">
@@ -169,7 +183,7 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* Input Area - Raised Position */}
+      {/* Input Area */}
       <div className="fixed bottom-[88px] left-0 right-0 px-4 z-30 safe-area-bottom">
         <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-2 rounded-2xl shadow-lg flex gap-2 max-w-md mx-auto">
           <input

@@ -10,17 +10,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gloova.ai">
     
-    <!-- Manifest Link (Cache Busting v7) -->
-    <link rel="manifest" href="/manifest.json?v=7">
+    <!-- Manifest Link -->
+    <link rel="manifest" href="/manifest.json">
     
-    <!-- Icons (Local Files - Required for Native App) -->
-    <link rel="icon" type="image/png" href="/icon-512.png?v=7">
-    <link rel="apple-touch-icon" href="/icon-512.png?v=7">
+    <!-- Icons (Apontando para o arquivo que você subiu) -->
+    <link rel="icon" type="image/png" href="/icon-512.png">
+    <link rel="apple-touch-icon" href="/icon-512.png">
     
     <!-- SECURITY & PERFORMANCE -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
     
-    <title>Gloova.AI - Hair Intelligence</title>
+    <title>Gloova.ai - Inteligência Capilar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -69,9 +69,10 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('✅ PWA Pronto:', reg.scope))
-            .catch(err => console.log('⚠️ PWA Erro:', err));
+          // Usa caminho relativo para compatibilidade
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('✅ PWA Ready'))
+            .catch(err => console.warn('⚠️ SW Error:', err));
         });
       }
     </script>

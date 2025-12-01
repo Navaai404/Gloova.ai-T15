@@ -122,7 +122,8 @@ export const Diagnosis: React.FC = () => {
         historico_usuario: null, 
         memory_key: user.memory_key || user.id, 
         quiz_data: finalQuizData,
-        conversation_id: user.id
+        // CORREÇÃO: Envia undefined se não existir, para o N8N criar (sem fallback user.id)
+        conversation_id: user.conversation_id || undefined
       };
 
       const diagnosis = await n8nService.submitDiagnosis(payload);
@@ -133,14 +134,13 @@ export const Diagnosis: React.FC = () => {
       deductCredit('diagnosis');
       addPoints(POINTS.DIAGNOSIS);
 
-      // --- REFERRAL REWARD LOGIC (Opcional: Se quiser dar pontos no Diagnóstico) ---
-      // Nota: Se você moveu a recompensa para o Pagamento (como discutido), pode remover este bloco.
-      // Mas se quiser manter um bônus menor por "Engajamento", deixe aqui.
+      // --- REFERRAL REWARD LOGIC (Frontend Simulation for MVP) ---
+      // Em produção, movido para o backend (Trigger de Pagamento)
+      // Mas mantido aqui se quiser recompensa por engajamento
       if (user.referred_by) {
         const isFirstTime = !localStorage.getItem('has_completed_first_diag');
         if (isFirstTime) {
-            console.log(`Engagement reward trigger for referrer: ${user.referred_by}`);
-            // Lógica opcional
+            console.log(`Referral engagement tracked: ${user.referred_by}`);
             localStorage.setItem('has_completed_first_diag', 'true');
         }
       }
