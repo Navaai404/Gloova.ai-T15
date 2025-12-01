@@ -38,7 +38,6 @@ export const Diagnosis: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
 
-  // ANGULOS DEFINIDOS
   const angles: { id: PhotoAngle; label: string; icon: any; desc: string }[] = [
       { id: 'Frente', label: 'Frente', icon: User, desc: 'Rosto visível, cabelo solto' },
       { id: 'Costas', label: 'Costas', icon: User, desc: 'Comprimento total nas costas' },
@@ -122,7 +121,7 @@ export const Diagnosis: React.FC = () => {
         historico_usuario: null, 
         memory_key: user.memory_key || user.id, 
         quiz_data: finalQuizData,
-        // CORREÇÃO: Envia undefined se não existir, para o N8N criar (sem fallback user.id)
+        // CORREÇÃO CRÍTICA: Envia undefined se não existir conversation_id para o N8N criar uma nova memória
         conversation_id: user.conversation_id || undefined
       };
 
@@ -134,16 +133,7 @@ export const Diagnosis: React.FC = () => {
       deductCredit('diagnosis');
       addPoints(POINTS.DIAGNOSIS);
 
-      // --- REFERRAL REWARD LOGIC (Frontend Simulation for MVP) ---
-      // Em produção, movido para o backend (Trigger de Pagamento)
-      // Mas mantido aqui se quiser recompensa por engajamento
-      if (user.referred_by) {
-        const isFirstTime = !localStorage.getItem('has_completed_first_diag');
-        if (isFirstTime) {
-            console.log(`Referral engagement tracked: ${user.referred_by}`);
-            localStorage.setItem('has_completed_first_diag', 'true');
-        }
-      }
+      // Referral logic is now handled on Payment (Profile.tsx), but we can keep engagement tracking here
       
     } catch (error) {
       console.error(error);
