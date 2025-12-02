@@ -13,9 +13,10 @@
     <!-- Manifest Link -->
     <link rel="manifest" href="/manifest.json">
     
-    <!-- Icons (Apontando para o arquivo que você subiu) -->
-    <link rel="icon" type="image/png" href="/icon-512.png">
-    <link rel="apple-touch-icon" href="/icon-512.png">
+    <!-- Icons (Padrão RealFaviconGenerator) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     
     <!-- SECURITY & PERFORMANCE -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
@@ -28,21 +29,10 @@
         font-family: 'Inter', sans-serif;
         background-color: #f8fafc;
       }
-      /* Hide scrollbar for clean UI */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      /* iOS Safe Area support */
-      .safe-area-top {
-        padding-top: env(safe-area-inset-top);
-      }
-      .safe-area-bottom {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .safe-area-top { padding-top: env(safe-area-inset-top); }
+      .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
     </style>
   <script type="importmap">
 {
@@ -69,7 +59,6 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // Usa caminho relativo para compatibilidade
           navigator.serviceWorker.register('./sw.js')
             .then(reg => console.log('✅ PWA Ready'))
             .catch(err => console.warn('⚠️ SW Error:', err));

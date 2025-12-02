@@ -3,6 +3,7 @@ export interface UserProfile {
   email: string;
   name?: string;
   memory_key?: string;
+  conversation_id?: string;
   points?: number;
   redeemed_rewards?: string[];
   subscription_tier?: 'free' | 'basic' | 'advanced' | 'premium';
