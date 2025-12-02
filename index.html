@@ -10,13 +10,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gloova.ai">
     
-    <!-- Manifest Link (Cache Busting) -->
-    <link rel="manifest" href="/manifest.json?v=FINAL_V1">
+    <!-- Manifest Link -->
+    <link rel="manifest" href="/manifest.json">
     
-    <!-- Icons (Apontando para icon-512.png com Cache Busting) -->
-    <link rel="icon" type="image/png" href="/icon-512.png?v=FINAL_V1">
-    <link rel="apple-touch-icon" href="/icon-512.png?v=FINAL_V1">
-    <link rel="shortcut icon" href="/icon-512.png?v=FINAL_V1">
+    <!-- Icons (URL Externa Garantida) -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2652/2652218.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2652/2652218.png">
     
     <!-- SECURITY & PERFORMANCE -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
@@ -60,7 +59,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('✅ PWA Service Worker OK:', reg.scope))
+            .then(reg => console.log('✅ PWA Ready'))
             .catch(err => console.warn('⚠️ SW Error:', err));
         });
       }

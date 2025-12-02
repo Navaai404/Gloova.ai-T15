@@ -1,16 +1,18 @@
-const CACHE_NAME = 'gloova-v13-final'; // Versão nova para forçar atualização
+const CACHE_NAME = 'gloova-v14-cdn-icons'; // Nova versão para limpar cache antigo
 const urlsToCache = [
   '/',
   '/index.html',
-  '/icon-512.png' // Nome correto da sua imagem
+  // URL Externa do ícone (CDN)
+  'https://cdn-icons-png.flaticon.com/512/2652/2652218.png'
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  self.skipWaiting(); // Força ativação imediata
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // O .catch garante que se a imagem falhar, o app ainda instala
-      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Cache parcial:', err));
+      console.log('SW: Caching files from CDN');
+      // Usa .catch para não quebrar a instalação se a CDN falhar
+      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Erro ao cachear CDN:', err));
     })
   );
 });

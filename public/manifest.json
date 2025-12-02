@@ -11,25 +11,25 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon-512.png?v=FINAL_V1",
+      "src": "https://cdn-icons-png.flaticon.com/512/2652/2652218.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=FINAL_V1",
+      "src": "https://cdn-icons-png.flaticon.com/512/2652/2652218.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512.png?v=FINAL_V1",
+      "src": "https://cdn-icons-png.flaticon.com/512/2652/2652218.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=FINAL_V1",
+      "src": "https://cdn-icons-png.flaticon.com/512/2652/2652218.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
