@@ -1,18 +1,18 @@
-const CACHE_NAME = 'gloova-v14-cdn-icons'; // Nova versão para limpar cache antigo
+const CACHE_NAME = 'gloova-v15-supabase-icon'; // Versão nova para forçar atualização
 const urlsToCache = [
   '/',
   '/index.html',
-  // URL Externa do ícone (CDN)
-  'https://cdn-icons-png.flaticon.com/512/2652/2652218.png'
+  // URL Oficial do Ícone no Supabase
+  'https://vqqmimgdziakrpoekspw.supabase.co/storage/v1/object/public/assets/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // Força ativação imediata
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('SW: Caching files from CDN');
-      // Usa .catch para não quebrar a instalação se a CDN falhar
-      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Erro ao cachear CDN:', err));
+      console.log('SW: Caching files from Supabase Storage');
+      // Usa .catch para não quebrar a instalação se a URL falhar
+      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Erro ao cachear ícone:', err));
     })
   );
 });
