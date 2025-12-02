@@ -1,20 +1,16 @@
-const CACHE_NAME = 'gloova-v12-pwa-fix'; 
+const CACHE_NAME = 'gloova-v13-final'; // Versão nova para forçar atualização
 const urlsToCache = [
   '/',
   '/index.html',
-  '/android-chrome-192x192.png',
-  '/android-chrome-512x512.png',
-  '/apple-touch-icon.png',
-  '/favicon-32x32.png'
+  '/icon-512.png' // Nome correto da sua imagem
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('SW: Caching files');
-      // Usa .catch para não quebrar se uma imagem faltar
-      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Cache parcial (verifique se as imagens existem na pasta public):', err));
+      // O .catch garante que se a imagem falhar, o app ainda instala
+      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Cache parcial:', err));
     })
   );
 });
@@ -24,9 +20,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((names) => {
       return Promise.all(
         names.map((name) => {
-          if (name !== CACHE_NAME) {
-             return caches.delete(name);
-          }
+          if (name !== CACHE_NAME) return caches.delete(name);
         })
       );
     })
@@ -35,6 +29,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Estratégia Stale-While-Revalidate para imagens
   if (event.request.destination === 'image') {
      event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
@@ -48,6 +43,7 @@ self.addEventListener('fetch', (event) => {
      return;
   }
 
+  // Estratégia Network First para o App
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/index.html'))
