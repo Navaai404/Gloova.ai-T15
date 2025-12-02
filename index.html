@@ -10,13 +10,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gloova.ai">
     
-    <!-- Manifest Link -->
-    <link rel="manifest" href="/manifest.json">
+    <!-- Manifest Link (Cache Busting) -->
+    <link rel="manifest" href="/manifest.json?v=PWA_REAL_FIX">
     
-    <!-- Icons (Padrão RealFaviconGenerator) -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <!-- Icons (Cache Busting) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=PWA_REAL_FIX">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=PWA_REAL_FIX">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=PWA_REAL_FIX">
     
     <!-- SECURITY & PERFORMANCE -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
@@ -59,8 +59,9 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+          // Usa caminho relativo e loga o sucesso
           navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('✅ PWA Ready'))
+            .then(reg => console.log('✅ PWA Service Worker OK:', reg.scope))
             .catch(err => console.warn('⚠️ SW Error:', err));
         });
       }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gloova-v11-final-icons'; // Nova versão para limpar cache antigo
+const CACHE_NAME = 'gloova-v12-pwa-fix'; 
 const urlsToCache = [
   '/',
   '/index.html',
@@ -9,12 +9,12 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Força ativação imediata
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('SW: Caching files');
-      // Usa .catch para não quebrar a instalação se um ícone faltar
-      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Cache parcial:', err));
+      // Usa .catch para não quebrar se uma imagem faltar
+      return cache.addAll(urlsToCache).catch(err => console.warn('SW: Cache parcial (verifique se as imagens existem na pasta public):', err));
     })
   );
 });
@@ -25,7 +25,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         names.map((name) => {
           if (name !== CACHE_NAME) {
-             console.log('SW: Clearing old cache', name);
              return caches.delete(name);
           }
         })
@@ -36,7 +35,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Estratégia Stale-While-Revalidate para imagens (Ícones carregam rápido)
   if (event.request.destination === 'image') {
      event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
@@ -50,7 +48,6 @@ self.addEventListener('fetch', (event) => {
      return;
   }
 
-  // Estratégia Network First para o App (Garante atualização)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/index.html'))
