@@ -121,7 +121,7 @@ export const Diagnosis: React.FC = () => {
         historico_usuario: null, 
         memory_key: user.memory_key || user.id, 
         quiz_data: finalQuizData,
-        // CORREÇÃO CRÍTICA: Envia undefined se não existir conversation_id para o N8N criar uma nova memória
+        // CORREÇÃO: Envia o ID da conversa salvo (memória) ou undefined para criar nova
         conversation_id: user.conversation_id || undefined
       };
 
@@ -133,7 +133,14 @@ export const Diagnosis: React.FC = () => {
       deductCredit('diagnosis');
       addPoints(POINTS.DIAGNOSIS);
 
-      // Referral logic is now handled on Payment (Profile.tsx), but we can keep engagement tracking here
+      // Referral logic
+      if (user.referred_by) {
+        const isFirstTime = !localStorage.getItem('has_completed_first_diag');
+        if (isFirstTime) {
+            console.log(`Referral engagement tracked: ${user.referred_by}`);
+            localStorage.setItem('has_completed_first_diag', 'true');
+        }
+      }
       
     } catch (error) {
       console.error(error);
@@ -205,36 +212,6 @@ export const Diagnosis: React.FC = () => {
             </div>
          </div>
          <Button onClick={() => navigate('/protocol')}>Ver Cronograma Completo</Button>
-      </div>
-    );
-  }
-
-  if (step === 'quiz') {
-    const question = QUESTIONS[quizIndex];
-    const progress = ((quizIndex + 1) / QUESTIONS.length) * 100;
-    return (
-      <div className="p-6 max-w-md mx-auto min-h-full flex flex-col animate-fade-in pt-4">
-         <div className="mb-8">
-            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
-               <button onClick={handleBackQuiz} className="flex items-center gap-1 hover:text-slate-600"><ChevronLeft size={12}/> Voltar</button>
-               <span>Passo {quizIndex + 1} de {QUESTIONS.length}</span>
-            </div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-600 transition-all duration-300 ease-out" style={{ width: `${progress}%` }}></div></div>
-         </div>
-         <div className="flex-1 flex flex-col">
-            <div className="mb-6">
-               {question.icon && <div className="mb-2">{question.icon}</div>}
-               <h2 className="text-2xl font-bold text-slate-900 leading-tight mb-2">{question.question}</h2>
-               {question.description && <p className="text-slate-500 text-sm">{question.description}</p>}
-            </div>
-            <div className="space-y-3">
-               {question.options.map((opt) => (
-                 <button key={opt} onClick={() => handleQuizAnswer(opt)} className="w-full text-left p-4 rounded-xl border border-slate-200 text-slate-700 font-medium hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-all active:scale-[0.99] flex items-center justify-between group">
-                   {opt} <ArrowRight size={16} className="text-transparent group-hover:text-blue-500 transition-colors" />
-                 </button>
-               ))}
-            </div>
-         </div>
       </div>
     );
   }

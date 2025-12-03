@@ -74,7 +74,7 @@ export const Chat: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user.memory_key,
-        // CORREÇÃO CRÍTICA: Envia null se não existir, para o JSON stringify não remover a chave
+        // CORREÇÃO: Garante envio de null se não houver ID
         conversation_id: user.conversation_id || null
       });
       
@@ -148,7 +148,7 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* Chat Area - Adjusted padding to not hide behind input */}
+      {/* Chat Area */}
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-40" 
@@ -185,7 +185,7 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* Input Area - Raised Position */}
+      {/* Input Area */}
       <div className="fixed bottom-[88px] left-0 right-0 px-4 z-30 safe-area-bottom">
         <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-2 rounded-2xl shadow-lg flex gap-2 max-w-md mx-auto">
           <input
