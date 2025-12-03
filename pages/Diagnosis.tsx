@@ -121,8 +121,8 @@ export const Diagnosis: React.FC = () => {
         historico_usuario: null, 
         memory_key: user.memory_key || user.id, 
         quiz_data: finalQuizData,
-        // CORREÇÃO: Envia null se não existir, para o JSON stringify não remover a chave
-        conversation_id: user.conversation_id ? user.conversation_id : null
+        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir ID, para o JSON stringify não remover a chave
+        conversation_id: user.conversation_id || null
       };
 
       const diagnosis = await n8nService.submitDiagnosis(payload);
@@ -133,6 +133,7 @@ export const Diagnosis: React.FC = () => {
       deductCredit('diagnosis');
       addPoints(POINTS.DIAGNOSIS);
 
+      // Lógica de recompensa por indicação (Mantida aqui para engajamento, mesmo se houver no pagamento)
       if (user.referred_by) {
         const isFirstTime = !localStorage.getItem('has_completed_first_diag');
         if (isFirstTime) {

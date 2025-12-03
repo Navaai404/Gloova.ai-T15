@@ -6,6 +6,7 @@ import { n8nService } from '../services/n8nService';
 import { ProductScanResult, DiagnosisResult, UserProfile } from '../types';
 import { addPoints, POINTS } from '../services/gamification';
 import { hasCredit, deductCredit } from '../services/monetization';
+import { supabase } from '../lib/supabase';
 
 export const Scan: React.FC = () => {
   const navigate = useNavigate();
@@ -55,11 +56,16 @@ export const Scan: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user?.memory_key || 'temp',
-        // CORREÇÃO: Envia null se não existir
-        conversation_id: user?.conversation_id ? user.conversation_id : null
+        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir, para não sumir do JSON
+        conversation_id: user?.conversation_id || null
       };
 
       const scanResult = await n8nService.scanProduct(payload);
+      
+      // Se o N8N retornou um novo conversation_id (iniciou memória no scan), salva
+      // (Nota: ProductScanResult precisaria ter conversation_id na interface se o N8N retornar, 
+      // mas geralmente o Scan usa a memória apenas para leitura. Se retornar, podemos salvar).
+      
       setResult(scanResult);
       
       deductCredit('scan');

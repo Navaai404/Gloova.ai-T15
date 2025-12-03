@@ -74,8 +74,8 @@ export const Chat: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user.memory_key,
-        // CORREÇÃO: Envia explicitamente null se for undefined/vazio
-        conversation_id: user.conversation_id ? user.conversation_id : null
+        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir ID
+        conversation_id: user.conversation_id || null
       });
       
       const aiResponseText = response.resposta;
@@ -136,6 +136,7 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         
+        {/* Token Status */}
         {!canChat ? (
             <button onClick={() => navigate('/profile')} className="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-red-200 transition-colors animate-pulse">
                 <Lock size={12} /> Sem Tokens
