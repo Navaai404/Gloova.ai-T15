@@ -55,8 +55,8 @@ export const Scan: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user?.memory_key || 'temp',
-        // CORREÇÃO: Envia null se não existir, para o N8N criar nova memória
-        conversation_id: user?.conversation_id || null
+        // CORREÇÃO: Envia null se não existir
+        conversation_id: user?.conversation_id ? user.conversation_id : null
       };
 
       const scanResult = await n8nService.scanProduct(payload);

@@ -74,8 +74,8 @@ export const Chat: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user.memory_key,
-        // CORREÇÃO: Garante envio de null se não houver ID
-        conversation_id: user.conversation_id || null
+        // CORREÇÃO: Envia explicitamente null se for undefined/vazio
+        conversation_id: user.conversation_id ? user.conversation_id : null
       });
       
       const aiResponseText = response.resposta;
@@ -136,7 +136,6 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         
-        {/* Token Status */}
         {!canChat ? (
             <button onClick={() => navigate('/profile')} className="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-red-200 transition-colors animate-pulse">
                 <Lock size={12} /> Sem Tokens
@@ -175,7 +174,6 @@ export const Chat: React.FC = () => {
           </div>
         )}
 
-        {/* Paywall Message */}
         {!canChat && (
             <div className="flex justify-center mt-4">
                 <div className="bg-slate-900 text-white text-xs py-2 px-4 rounded-full shadow-lg flex items-center gap-2">

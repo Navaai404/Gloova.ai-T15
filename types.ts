@@ -3,23 +3,23 @@ export interface UserProfile {
   email: string;
   name?: string;
   memory_key?: string;
-  conversation_id?: string;
+  conversation_id?: string | null; // Permitir null
   points?: number;
   redeemed_rewards?: string[];
   subscription_tier?: 'free' | 'basic' | 'advanced' | 'premium';
   referrals?: Referral[];
   
   // Wallet / Credits
-  chat_credits?: number;      // 30 chars = 1 credit
-  diagnosis_credits?: number; // Full diagnosis
-  scan_credits?: number;      // Product analysis
+  chat_credits?: number;
+  diagnosis_credits?: number;
+  scan_credits?: number;
   
   // Referral System
-  referral_code?: string;     // O código deste usuário (ex: JOAO123)
-  referred_by?: string;       // O código de quem indicou este usuário
+  referral_code?: string;
+  referred_by?: string;
   
   // Contact Info
-  whatsapp?: string;          // Número de WhatsApp do usuário (Obrigatório para CRM)
+  whatsapp?: string;
 }
 
 export interface Referral {
@@ -79,21 +79,21 @@ export interface QuizData {
   chemical_history: string;
   scalp_type: string;
   treatment_goal: string;
-  budget_preference: string; // Critical for recommendations
+  budget_preference: string; 
   allergies: string;
   previous_schedule: string;
   dedication_time: string;
 }
 
-// N8N Payload Interfaces
+// N8N Payload Interfaces - conversation_id pode ser null
 export interface N8NDiagnosisPayload {
   user_id: string;
-  image_base64: string; // Primary image (Front)
-  additional_images?: Record<string, string>; // Other angles
+  image_base64: string; 
+  additional_images?: Record<string, string>;
   historico_usuario: any;
   memory_key: string;
-  quiz_data?: QuizData; // Included in analysis
-  conversation_id?: string;
+  quiz_data?: QuizData;
+  conversation_id?: string | null;
 }
 
 export interface N8NScanPayload {
@@ -102,7 +102,7 @@ export interface N8NScanPayload {
   diagnostico_atual: any;
   protocolo_30_dias: any;
   memory_key: string;
-  conversation_id?: string;
+  conversation_id?: string | null;
 }
 
 export interface N8NChatPayload {
@@ -111,12 +111,12 @@ export interface N8NChatPayload {
   diagnostico_atual: any;
   protocolo_30_dias: any;
   memory_key: string;
-  conversation_id?: string;
+  conversation_id?: string | null;
 }
 
 export interface N8NMarketingPayload {
   admin_id: string;
-  target_segment: string; // 'basic', 'active', 'all', etc.
+  target_segment: string;
   title: string;
   message: string;
   channels: {
