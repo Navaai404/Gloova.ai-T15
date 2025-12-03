@@ -74,8 +74,8 @@ export const Chat: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user.memory_key,
-        // CORREÇÃO: Envia null se não existir, para o N8N criar
-        conversation_id: user.conversation_id || undefined 
+        // CORREÇÃO CRÍTICA: Envia null se não existir, para o JSON stringify não remover a chave
+        conversation_id: user.conversation_id || null
       });
       
       const aiResponseText = response.resposta;
@@ -136,6 +136,7 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         
+        {/* Token Status */}
         {!canChat ? (
             <button onClick={() => navigate('/profile')} className="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-red-200 transition-colors animate-pulse">
                 <Lock size={12} /> Sem Tokens
@@ -147,7 +148,7 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* Chat Area */}
+      {/* Chat Area - Adjusted padding to not hide behind input */}
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-40" 
@@ -174,6 +175,7 @@ export const Chat: React.FC = () => {
           </div>
         )}
 
+        {/* Paywall Message */}
         {!canChat && (
             <div className="flex justify-center mt-4">
                 <div className="bg-slate-900 text-white text-xs py-2 px-4 rounded-full shadow-lg flex items-center gap-2">
@@ -183,7 +185,7 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - Raised Position */}
       <div className="fixed bottom-[88px] left-0 right-0 px-4 z-30 safe-area-bottom">
         <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-2 rounded-2xl shadow-lg flex gap-2 max-w-md mx-auto">
           <input
