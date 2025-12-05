@@ -28,10 +28,10 @@ export const n8nService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, action: 'diagnosis' })
       });
-      if (!response.ok) throw new Error(`N8N Error`);
+      if (!response.ok) throw new Error(`N8N Error: ${response.status} ${response.statusText}`);
       return await response.json() as DiagnosisResult;
     } catch (error) {
-      console.error("Diagnosis Error", error);
+      console.error("Diagnosis Error:", error);
       return mockDiagnosisResponse();
     }
   },
@@ -44,9 +44,10 @@ export const n8nService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, action: 'scan' })
       });
-      if (!response.ok) throw new Error(`N8N Error`);
+      if (!response.ok) throw new Error(`N8N Error: ${response.status} ${response.statusText}`);
       return await response.json() as ProductScanResult;
     } catch (error) {
+      console.error("Scan Error:", error);
       return mockScanResponse(Math.random() > 0.3);
     }
   },
@@ -63,7 +64,11 @@ export const n8nService = {
         body: JSON.stringify({ ...payload, action: 'chat' })
       });
 
-      if (!response.ok) throw new Error(`N8N Error: ${response.status}`);
+      if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`N8N Error (${response.status}):`, errorText);
+          throw new Error(`N8N Error: ${response.status}`);
+      }
 
       // Tenta ler como texto primeiro para evitar crash no .json()
       const textData = await response.text();
@@ -73,8 +78,7 @@ export const n8nService = {
           const jsonData = JSON.parse(textData);
           
           // Procura a resposta em várias chaves possíveis (flexibilidade total)
-          // Se o N8N devolver { "resposta": "..." } ou { "text": "..." } ou { "output": "..." }
-          const answer = jsonData.resposta || jsonData.text || jsonData.output || jsonData.message || JSON.stringify(jsonData);
+          const answer = jsonData.resposta || jsonData.text || jsonData.output || jsonData.message || (typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData));
           
           return { 
               resposta: answer,
@@ -83,12 +87,15 @@ export const n8nService = {
 
       } catch (e) {
           // Se não for JSON, assume que o N8N devolveu texto puro e usa isso
-          console.warn("N8N retornou texto puro, não JSON:", textData);
-          return { resposta: textData };
+          console.warn("N8N retornou texto puro, não JSON. Usando raw text:", textData);
+          if (textData && textData.length > 0) {
+              return { resposta: textData };
+          }
+          throw new Error("Resposta vazia ou inválida");
       }
 
     } catch (error) {
-      console.error("Chat Error:", error);
+      console.error("Chat Service Error:", error);
       return { resposta: mockChatResponse(payload.mensagem) };
     }
   },
@@ -101,7 +108,7 @@ export const n8nService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'checkout', user_id: userId, ...item, method })
       });
-      if (!response.ok) throw new Error("Erro");
+      if (!response.ok) throw new Error("Erro no checkout");
       return await response.json();
     } catch (error) {
       return new Promise(resolve => {
@@ -115,14 +122,15 @@ export const n8nService = {
   async sendMarketingCampaign(payload: N8NMarketingPayload): Promise<boolean> {
     const url = getGatewayUrl();
     try {
-        await fetch(url, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...payload, action: 'marketing' })
         });
-        return true;
+        return response.ok;
     } catch (error) {
-        return true;
+        console.error("Marketing Error:", error);
+        return true; // Mock success fallback
     }
   }
 };
@@ -130,7 +138,7 @@ export const n8nService = {
 // ... Mocks mantidos ...
 const mockDiagnosisResponse = (): DiagnosisResult => ({
   date: new Date().toISOString(),
-  analysis_text: "Modo Demo: O serviço N8N parece indisponível.",
+  analysis_text: "Modo Demo: O serviço N8N parece indisponível ou com erro de CORS. Verifique o console (F12).",
   curvature: "2C",
   porosity: "Média",
   oiliness: "Mista",
@@ -140,4 +148,4 @@ const mockDiagnosisResponse = (): DiagnosisResult => ({
   protocol_30_days: []
 });
 const mockScanResponse = (c: boolean) => ({ product_name: "Demo", category: "Teste", composition_summary: "...", functions: "...", is_compatible: c, reason: "...", usage_recommendation: "..." });
-const mockChatResponse = (msg: string) => `[Demo] N8N Offline.`;
+const mockChatResponse = (msg: string) => `[Demo] N8N Offline. Erro de conexão.`;
