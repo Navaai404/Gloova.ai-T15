@@ -28,10 +28,18 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     // 1. Verifica sessão atual ao carregar
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    const initSession = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            setSession(session);
+        } catch (e) {
+            console.error("Erro ao restaurar sessão:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    initSession();
 
     // 2. Escuta mudanças de sessão (Login/Logout/Refresh)
     const {
@@ -46,7 +54,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   return (
     <AuthContext.Provider value={{ session, loading }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
@@ -56,18 +64,30 @@ const useAuth = () => {
   return useContext(AuthContext);
 };
 
-// --- Componente de Rota Protegida ---
+// --- Componente de Rota Protegida (Blindado) ---
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session, loading } = useAuth();
   const location = useLocation();
+  
+  // Estado local para evitar flash de redirecionamento enquanto o AuthProvider carrega
+  // Isso dá uma chance para o localStorage ou Supabase responderem
+  const [isRestoring, setIsRestoring] = useState(true);
 
-  if (loading) {
-      return <div className="h-screen flex items-center justify-center bg-white text-slate-400">Carregando...</div>;
+  useEffect(() => {
+      if (!loading) {
+          setIsRestoring(false);
+      }
+  }, [loading]);
+
+  if (loading || isRestoring) {
+      // Splash Screen ou Loading discreto enquanto verifica
+      return <div className="h-screen flex items-center justify-center bg-slate-50 text-slate-400 text-sm font-medium">Carregando Gloova...</div>;
   }
 
-  // Fallback: Verifica localStorage se o Supabase ainda estiver inicializando ou em modo mock
+  // Fallback: Verifica localStorage se o Supabase falhar momentaneamente
   const localUser = localStorage.getItem('gloova_user');
 
+  // Só redireciona para Login se NÃO tiver sessão E NÃO tiver usuário local
   if (!session && !localUser) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
