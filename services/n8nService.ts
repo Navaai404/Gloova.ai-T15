@@ -105,6 +105,8 @@ export const n8nService = {
       
       try {
           const jsonData = JSON.parse(textData);
+          // Tenta pegar a resposta em qualquer campo possível
+          // Garante que o texto completo venha, mesmo se for longo
           const answer = jsonData.resposta || jsonData.text || jsonData.output || jsonData.message || (typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData));
           
           return { 
@@ -112,10 +114,11 @@ export const n8nService = {
               conversation_id: jsonData.conversation_id || jsonData.thread_id
           };
       } catch (e) {
+          // Se falhar o parse JSON, retorna o texto puro como resposta
           if (textData && textData.length > 0) {
               return { resposta: textData };
           }
-          throw new Error("Resposta vazia");
+          throw new Error("Resposta vazia do N8N");
       }
 
     } catch (error) {
