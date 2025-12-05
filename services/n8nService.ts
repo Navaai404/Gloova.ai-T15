@@ -1,12 +1,30 @@
 import { N8NChatPayload, N8NDiagnosisPayload, N8NScanPayload, DiagnosisResult, ProductScanResult, N8NMarketingPayload } from '../types';
+import { supabase } from '../lib/supabase';
 
-// URL Padrão (Fallback)
+// URL Padrão (Fallback caso o banco falhe)
 const DEFAULT_N8N_URL = 'https://n8neditor.comercialai.site/webhook-test/webhook-gateway';
 
-// Busca URL dinâmica configurada no Admin
-const getGatewayUrl = () => {
+// Busca URL dinâmica do Supabase (Configuração Global) ou Cache Local
+const getGatewayUrl = async (): Promise<string> => {
   try {
-    return localStorage.getItem('gloova_config_n8n_url') || DEFAULT_N8N_URL;
+    // 1. Tenta buscar do cache local (para velocidade)
+    const cachedUrl = localStorage.getItem('gloova_config_n8n_url');
+    if (cachedUrl) return cachedUrl;
+
+    // 2. Se não tiver, busca do Supabase (Tabela Global)
+    const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', 'n8n_url')
+        .single();
+    
+    if (data && data.value) {
+        // Salva no cache para as próximas chamadas
+        localStorage.setItem('gloova_config_n8n_url', data.value);
+        return data.value;
+    }
+    
+    return DEFAULT_N8N_URL;
   } catch {
     return DEFAULT_N8N_URL;
   }
@@ -14,8 +32,6 @@ const getGatewayUrl = () => {
 
 // Helper para decidir se usa Proxy ou Direto
 const getFetchUrlAndHeaders = (targetUrl: string) => {
-  // Se estiver rodando localmente (localhost), vai direto.
-  // Se estiver em produção (Vercel/Domínio), usa o Proxy para evitar CORS.
   const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
 
   if (isProduction) {
@@ -23,7 +39,7 @@ const getFetchUrlAndHeaders = (targetUrl: string) => {
       url: '/api/proxy',
       headers: {
         'Content-Type': 'application/json',
-        'x-n8n-target': targetUrl // O Proxy vai ler isso e encaminhar
+        'x-n8n-target': targetUrl
       }
     };
   } else {
@@ -45,7 +61,7 @@ export interface CheckoutResponse {
 
 export const n8nService = {
   async submitDiagnosis(payload: N8NDiagnosisPayload): Promise<DiagnosisResult> {
-    const targetUrl = getGatewayUrl();
+    const targetUrl = await getGatewayUrl(); // Agora é async
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
     
     try {
@@ -67,7 +83,7 @@ export const n8nService = {
   },
 
   async scanProduct(payload: N8NScanPayload): Promise<ProductScanResult> {
-    const targetUrl = getGatewayUrl();
+    const targetUrl = await getGatewayUrl();
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
 
     try {
@@ -85,7 +101,7 @@ export const n8nService = {
   },
 
   async sendChatMessage(payload: N8NChatPayload): Promise<{ resposta: string, conversation_id?: string }> {
-    const targetUrl = getGatewayUrl();
+    const targetUrl = await getGatewayUrl();
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
 
     try {
@@ -105,8 +121,6 @@ export const n8nService = {
       
       try {
           const jsonData = JSON.parse(textData);
-          // Tenta pegar a resposta em qualquer campo possível
-          // Garante que o texto completo venha, mesmo se for longo
           const answer = jsonData.resposta || jsonData.text || jsonData.output || jsonData.message || (typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData));
           
           return { 
@@ -114,7 +128,6 @@ export const n8nService = {
               conversation_id: jsonData.conversation_id || jsonData.thread_id
           };
       } catch (e) {
-          // Se falhar o parse JSON, retorna o texto puro como resposta
           if (textData && textData.length > 0) {
               return { resposta: textData };
           }
@@ -128,7 +141,7 @@ export const n8nService = {
   },
 
   async createCheckout(userId: string, item: any, method: any): Promise<CheckoutResponse> {
-    const targetUrl = getGatewayUrl();
+    const targetUrl = await getGatewayUrl();
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
 
     try {
@@ -149,7 +162,7 @@ export const n8nService = {
   },
 
   async sendMarketingCampaign(payload: N8NMarketingPayload): Promise<boolean> {
-    const targetUrl = getGatewayUrl();
+    const targetUrl = await getGatewayUrl();
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
 
     try {

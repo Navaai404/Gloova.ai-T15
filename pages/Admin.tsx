@@ -6,7 +6,7 @@ import { PLANS } from '../services/monetization';
 import { Button } from '../components/Button';
 import { n8nService } from '../services/n8nService';
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js'; // Import direto para criar cliente de teste
+import { createClient } from '@supabase/supabase-js'; 
 
 // --- LISTA DE ADMINS ---
 const ADMIN_EMAILS = [
@@ -50,7 +50,6 @@ export const Admin: React.FC = () => {
         }
         const user = JSON.parse(userStr);
         
-        // Verificação segura (Case Insensitive)
         const userEmail = (user.email || '').toLowerCase().trim();
         const isAuthorized = ADMIN_EMAILS.some(admin => admin.toLowerCase().trim() === userEmail);
 
@@ -61,7 +60,7 @@ export const Admin: React.FC = () => {
         }
         
         setIsAdmin(true);
-        loadConfigs();
+        await loadConfigs();
         await loadDataReal(); 
         setIsLoading(false);
     };
@@ -69,7 +68,8 @@ export const Admin: React.FC = () => {
     checkAdmin();
   }, [navigate]);
 
-  const loadConfigs = () => {
+  const loadConfigs = async () => {
+      // Carrega configs locais primeiro
       setConfigN8N(localStorage.getItem('gloova_config_n8n_url') || '');
       setConfigSupaUrl(localStorage.getItem('gloova_config_supabase_url') || '');
       setConfigSupaKey(localStorage.getItem('gloova_config_supabase_key') || '');
@@ -77,6 +77,14 @@ export const Admin: React.FC = () => {
       setLinkAdvanced(localStorage.getItem('gloova_link_advanced') || '');
       setLinkPremium(localStorage.getItem('gloova_link_premium') || '');
       setLinkCredits(localStorage.getItem('gloova_link_credits') || '');
+
+      // Tenta carregar config global do Supabase (N8N URL)
+      try {
+          const { data } = await supabase.from('app_settings').select('value').eq('id', 'n8n_url').single();
+          if (data) setConfigN8N(data.value);
+      } catch (e) {
+          // Silent fail se tabela não existir ou offline
+      }
   };
 
   const loadDataReal = async () => {
@@ -112,26 +120,29 @@ export const Admin: React.FC = () => {
     const cleanSupaUrl = configSupaUrl.trim();
     const cleanSupaKey = configSupaKey.trim();
 
-    // 2. TESTE DE CONEXÃO REAL (CRÍTICO)
-    // Cria um cliente temporário para testar ANTES de salvar
+    // 2. TESTE DE CONEXÃO REAL
     try {
         if (cleanSupaUrl && cleanSupaKey) {
             const testClient = createClient(cleanSupaUrl, cleanSupaKey);
-            // Tenta ler 1 linha da tabela profiles para ver se conecta
             const { error } = await testClient.from('profiles').select('id').limit(1);
-            
-            if (error) {
-                // Se der erro (ex: permissão negada, chave errada), lança exceção
-                throw new Error(`Erro do Supabase: ${error.message}`);
-            }
+            if (error) throw new Error(`Erro do Supabase: ${error.message}`);
         }
     } catch (e: any) {
-        // Se falhar, avisa e NÃO salva (ou pergunta se quer salvar mesmo)
-        const forceSave = window.confirm(`❌ FALHA NA CONEXÃO!\n\nErro: ${e.message}\n\nAs chaves parecem inválidas. Deseja salvar mesmo assim? (O app pode parar de funcionar)`);
+        const forceSave = window.confirm(`❌ FALHA NA CONEXÃO!\n\nErro: ${e.message}\n\nDeseja salvar mesmo assim?`);
         if (!forceSave) return;
     }
 
-    // 3. Salva no LocalStorage se passou no teste ou forçou
+    // 3. Salva GLOBALMENTE no Supabase (Para todos os usuários)
+    if (cleanN8N && connectionStatus === 'connected') {
+        try {
+            await supabase.from('app_settings').upsert({ id: 'n8n_url', value: cleanN8N });
+        } catch (e) {
+            console.error("Erro ao salvar config global", e);
+            alert("Aviso: Não foi possível salvar a URL do N8N globalmente (verifique a tabela app_settings). Salvo apenas localmente.");
+        }
+    }
+
+    // 4. Salva Localmente (Admin e Links)
     if (cleanN8N) localStorage.setItem('gloova_config_n8n_url', cleanN8N);
     if (cleanSupaUrl) localStorage.setItem('gloova_config_supabase_url', cleanSupaUrl);
     if (cleanSupaKey) localStorage.setItem('gloova_config_supabase_key', cleanSupaKey);
@@ -141,14 +152,12 @@ export const Admin: React.FC = () => {
     localStorage.setItem('gloova_link_premium', linkPremium.trim());
     localStorage.setItem('gloova_link_credits', linkCredits.trim());
     
-    // 4. Reload
-    alert("✅ Configurações Salvas e Testadas! O aplicativo será recarregado.");
+    alert("✅ Configurações Salvas! O aplicativo será recarregado.");
     window.location.reload();
   };
 
-  // ... (Resto das funções mantidas)
   const handleResetSettings = () => {
-    if (window.confirm("Tem certeza? Isso apagará todas as configurações.")) {
+    if (window.confirm("Tem certeza? Isso apagará todas as configurações locais.")) {
         localStorage.removeItem('gloova_config_n8n_url');
         localStorage.removeItem('gloova_config_supabase_url');
         localStorage.removeItem('gloova_config_supabase_key');
@@ -195,6 +204,7 @@ export const Admin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 animate-fade-in">
+      {/* Header */}
       <div className="bg-slate-900 text-white p-6 pb-8 rounded-b-[32px] sticky top-0 z-20 shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
