@@ -14,27 +14,51 @@ export const Chat: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [canChat, setCanChat] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const checkCredit = () => {
-    const userStr = localStorage.getItem('gloova_user');
-    if (userStr) {
-        const user: UserProfile = JSON.parse(userStr);
-        setCanChat(hasCredit(user, 'chat'));
-    }
-  };
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    checkCredit();
-    window.addEventListener('points-updated', checkCredit);
-    
-    setMessages([{
-      id: 'init',
-      sender: 'ai',
-      text: 'Olá! Sou sua Assistente Capilar. Como posso ajudar com seu tratamento hoje?',
-      timestamp: new Date()
-    }]);
+    const loadData = async () => {
+        const userStr = localStorage.getItem('gloova_user');
+        if (userStr) {
+            const parsedUser: UserProfile = JSON.parse(userStr);
+            setUser(parsedUser);
+            setCanChat(hasCredit(parsedUser, 'chat'));
 
-    return () => window.removeEventListener('points-updated', checkCredit);
+            // Carrega histórico do Supabase
+            try {
+                const { data, error } = await supabase
+                    .from('chat_messages')
+                    .select('*')
+                    .eq('user_id', parsedUser.id)
+                    .order('created_at', { ascending: true });
+                
+                if (data && data.length > 0) {
+                    // Mapeia do banco para o formato do chat
+                    const history: ChatMessage[] = data.map(m => ({
+                        id: m.id,
+                        sender: m.sender,
+                        text: m.text,
+                        timestamp: new Date(m.created_at)
+                    }));
+                    setMessages(history);
+                } else {
+                    // Mensagem inicial se não houver histórico
+                    setMessages([{
+                      id: 'init',
+                      sender: 'ai',
+                      text: 'Olá! Sou sua Assistente Capilar. Como posso ajudar com seu tratamento hoje?',
+                      timestamp: new Date()
+                    }]);
+                }
+            } catch (e) {
+                console.error("Erro ao carregar chat", e);
+            }
+        }
+    };
+
+    loadData();
+    window.addEventListener('points-updated', loadData); // Re-check credits on update
+    return () => window.removeEventListener('points-updated', loadData);
   }, []);
 
   useEffect(() => {
@@ -43,49 +67,63 @@ export const Chat: React.FC = () => {
     }
   }, [messages, isTyping]);
 
+  const saveMessageToDb = async (userId: string, sender: 'user' | 'ai', text: string) => {
+      if (userId === 'guest' || userId.includes('demo')) return; // Não salva demo
+      try {
+          await supabase.from('chat_messages').insert({
+              user_id: userId,
+              sender: sender,
+              text: text
+          });
+      } catch (e) {
+          console.error("Erro ao salvar mensagem", e);
+      }
+  };
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !user) return;
     
     if (!canChat) {
         navigate('/profile');
         return;
     }
 
+    const userText = input;
+    setInput(''); // Limpa input imediatamente
+    
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: input,
+      text: userText,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMsg]);
-    setInput('');
+    saveMessageToDb(user.id, 'user', userText); // Salva no banco
+    
     setIsTyping(true);
 
     try {
       const storedDiag = localStorage.getItem('gloova_last_diagnosis');
       const diag: DiagnosisResult | null = storedDiag ? JSON.parse(storedDiag) : null;
-      const userStr = localStorage.getItem('gloova_user');
-      const user = userStr ? JSON.parse(userStr) : { id: 'guest', memory_key: 'temp' };
 
       const response = await n8nService.sendChatMessage({
         user_id: user.id,
-        mensagem: userMsg.text,
+        mensagem: userText,
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user.memory_key,
-        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir ID
         conversation_id: user.conversation_id || null
       });
       
       const aiResponseText = response.resposta;
       
-      // Se o N8N retornou um novo ID de conversa, salva no perfil
+      // Atualiza memória se mudou
       if (response.conversation_id && response.conversation_id !== user.conversation_id) {
           const updatedUser = { ...user, conversation_id: response.conversation_id };
+          setUser(updatedUser);
           localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
           
-          // Atualiza no Supabase silenciosamente
           if (user.id !== 'guest') {
               supabase.from('profiles')
                 .update({ conversation_id: response.conversation_id })
@@ -94,6 +132,7 @@ export const Chat: React.FC = () => {
           }
       }
       
+      // Cobra créditos
       const cost = calculateChatCost(aiResponseText.length);
       deductCredit('chat', cost);
       
@@ -105,6 +144,7 @@ export const Chat: React.FC = () => {
       };
 
       setMessages(prev => [...prev, aiMsg]);
+      saveMessageToDb(user.id, 'ai', aiResponseText); // Salva resposta no banco
       addPoints(POINTS.CHAT);
       
     } catch (error) {
@@ -136,7 +176,6 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         
-        {/* Token Status */}
         {!canChat ? (
             <button onClick={() => navigate('/profile')} className="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-red-200 transition-colors animate-pulse">
                 <Lock size={12} /> Sem Tokens

@@ -1,5 +1,5 @@
-import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useState, createContext, useContext } from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Auth } from './pages/Auth';
 import { Home } from './pages/Home';
@@ -12,23 +12,71 @@ import { Gamification } from './pages/Gamification';
 import { Admin } from './pages/Admin';
 import { Onboarding } from './pages/Onboarding';
 import { Legal } from './pages/Legal';
+import { supabase } from './lib/supabase';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
+// --- Contexto de Autenticação ---
+interface AuthContextType {
+  session: any;
+  loading: boolean;
 }
 
-// Simple protection wrapper
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const isAuthenticated = !!localStorage.getItem('gloova_user');
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+const AuthContext = createContext<AuthContextType>({ session: null, loading: true });
+
+const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1. Verifica sessão atual ao carregar
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // 2. Escuta mudanças de sessão (Login/Logout/Refresh)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ session, loading }}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+};
+
+// --- Hook para usar Auth ---
+const useAuth = () => {
+  return useContext(AuthContext);
+};
+
+// --- Componente de Rota Protegida ---
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { session, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+      return <div className="h-screen flex items-center justify-center bg-white text-slate-400">Carregando...</div>;
   }
+
+  // Fallback: Verifica localStorage se o Supabase ainda estiver inicializando ou em modo mock
+  const localUser = localStorage.getItem('gloova_user');
+
+  if (!session && !localUser) {
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
   return <Layout>{children}</Layout>;
 };
 
-const App: React.FC = () => {
-  return (
-    <HashRouter>
+const AppRoutes: React.FC = () => {
+    return (
       <Routes>
         <Route path="/" element={<Auth />} />
         
@@ -90,7 +138,16 @@ const App: React.FC = () => {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </HashRouter>
+    );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <HashRouter>
+         <AppRoutes />
+      </HashRouter>
+    </AuthProvider>
   );
 };
 
