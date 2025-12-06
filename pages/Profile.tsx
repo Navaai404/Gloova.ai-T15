@@ -26,15 +26,56 @@ export const Profile: React.FC = () => {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<{name: string, price: number, type: 'pkg' | 'sub', subTier?: any, pkgType?: any, pkgQty?: number} | null>(null);
 
-  const loadUser = () => {
+  const loadUser = async () => {
     const userStr = localStorage.getItem('gloova_user');
-    if (userStr) setUser(JSON.parse(userStr));
+    if (userStr) {
+        let userData = JSON.parse(userStr);
+        
+        // Refresh from DB to ensure sync
+        try {
+            const { data } = await supabase.from('profiles').select('*').eq('id', userData.id).single();
+            if (data) {
+                userData = data;
+                localStorage.setItem('gloova_user', JSON.stringify(userData));
+            }
+        } catch (e) {
+            console.error("Sync error", e);
+        }
+        setUser(userData);
+    }
   };
 
   useEffect(() => {
     loadUser();
+    
+    // REALTIME LISTENER: Escuta mudanças no saldo/plano
+    let channel: any;
+    const userStr = localStorage.getItem('gloova_user');
+    
+    if (userStr) {
+        const parsedUser = JSON.parse(userStr);
+        channel = supabase
+          .channel('profile-updates')
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${parsedUser.id}` },
+            (payload) => {
+                console.log("Perfil atualizado via Realtime!", payload);
+                if (payload.new) {
+                    const updatedUser = payload.new as UserProfile;
+                    setUser(updatedUser);
+                    localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
+                }
+            }
+          )
+          .subscribe();
+    }
+
     window.addEventListener('points-updated', loadUser);
-    return () => window.removeEventListener('points-updated', loadUser);
+    return () => {
+        window.removeEventListener('points-updated', loadUser);
+        if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   if (!user) return null;
@@ -46,7 +87,7 @@ export const Profile: React.FC = () => {
     navigate('/');
   };
 
-  // -- Payment Handlers --
+  // -- Payment Handlers with External Links Support --
 
   const initiateUpgrade = (tier: 'advanced' | 'premium', plan: any) => {
     let linkToUse = '';
@@ -86,7 +127,6 @@ export const Profile: React.FC = () => {
     setIsPaymentOpen(true);
   };
 
-  // --- LÓGICA DE SUCESSO DE PAGAMENTO & RECOMPENSA REFERRAL ---
   const handlePaymentSuccess = async () => {
     if (!pendingItem) return;
 
@@ -94,7 +134,6 @@ export const Profile: React.FC = () => {
         const tier = pendingItem.subTier;
         const planLimits = PLANS[tier].limits;
         
-        // 1. Atualiza o usuário localmente
         const updated = { 
             ...user, 
             subscription_tier: tier,
@@ -105,18 +144,13 @@ export const Profile: React.FC = () => {
         setUser(updated);
         localStorage.setItem('gloova_user', JSON.stringify(updated));
 
-        // 2. LÓGICA DE RECOMPENSA DO PADRINHO (REFERRAL)
-        // Verifica se é a primeira vez que ele assina (estava no free) e se tem padrinho
-        const isFirstSub = user.subscription_tier === 'free' || user.subscription_tier === 'basic'; // Assumindo upgrade
+        // Referral Logic
+        const isFirstSub = user.subscription_tier === 'free' || user.subscription_tier === 'basic'; 
         
         if (isFirstSub && user.referred_by) {
-             // Evita pagar duas vezes (usa uma flag local ou verifica histórico no banco idealmente)
              const alreadyRewarded = localStorage.getItem('referral_reward_given');
              
              if (!alreadyRewarded) {
-                 console.log(`Giving ${POINTS.REFERRAL_BONUS} points to referrer: ${user.referred_by}`);
-                 
-                 // Busca o padrinho pelo código
                  const { data: referrer } = await supabase
                     .from('profiles')
                     .select('*')
@@ -124,7 +158,6 @@ export const Profile: React.FC = () => {
                     .single();
                  
                  if (referrer) {
-                     // Dá os pontos ao padrinho
                      const newPoints = (referrer.points || 0) + POINTS.REFERRAL_BONUS;
                      await supabase
                         .from('profiles')
@@ -132,8 +165,7 @@ export const Profile: React.FC = () => {
                         .eq('id', referrer.id);
                      
                      localStorage.setItem('referral_reward_given', 'true');
-                     // Opcional: Notificar o usuário atual que ele ajudou o amigo
-                     alert(`Parabéns pela assinatura! Seu amigo (código ${user.referred_by}) acabou de ganhar ${POINTS.REFERRAL_BONUS} pontos graças a você! 🎉`);
+                     alert(`Parabéns pela assinatura! Seu amigo (código ${user.referred_by}) ganhou bônus! 🎉`);
                  }
              }
         }
@@ -155,22 +187,11 @@ export const Profile: React.FC = () => {
   const planDetails = PLANS[userPlanId];
   const isPremium = user.subscription_tier === 'premium';
 
-  // --- SUB-VIEWS RENDERERS ---
+  // --- SUB-VIEWS RENDERERS (Mesma UI) ---
   const renderRewards = () => (
     <div className="animate-fade-in">
       <div className="flex items-center mb-6"><button onClick={() => setCurrentView('main')} className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors"><ChevronLeft className="text-slate-600" /></button><h1 className="text-xl font-bold ml-2 text-slate-800">Recompensas</h1></div>
-      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-lg mb-6 sticky top-0 z-10">
-          <div className="flex justify-between items-center">
-              <div>
-                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">Seu Saldo</p>
-                  <div className="flex items-center gap-2"><Trophy className="text-yellow-400" size={24} /><span className="text-3xl font-bold text-white">{points}</span></div>
-              </div>
-              <div className="text-right">
-                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">Nível Atual</p>
-                  <span className="bg-white/10 px-3 py-1 rounded-full text-sm font-semibold border border-white/20 text-yellow-300">{level.name}</span>
-              </div>
-          </div>
-      </div>
+      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-lg mb-6 sticky top-0 z-10"><div className="flex justify-between items-center"><div><p className="text-slate-400 text-xs font-bold uppercase mb-1">Seu Saldo</p><div className="flex items-center gap-2"><Trophy className="text-yellow-400" size={24} /><span className="text-3xl font-bold text-white">{points}</span></div></div><div className="text-right"><p className="text-slate-400 text-xs font-bold uppercase mb-1">Nível Atual</p><span className="bg-white/10 px-3 py-1 rounded-full text-sm font-semibold border border-white/20 text-yellow-300">{level.name}</span></div></div></div>
       <div className="space-y-3">{REWARDS_LIST.map((reward) => { const canAfford = points >= reward.cost; return (<div key={reward.id} className={`bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-3`}><div className="flex justify-between items-start"><div className="flex gap-3"><div className={`p-3 rounded-xl bg-slate-50`}><Gift size={20} className="text-blue-500" /></div><div><h4 className="font-bold text-slate-800">{reward.title}</h4><p className="text-xs text-slate-500 mt-1">{reward.description}</p></div></div></div><div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-1"><span className={`text-sm font-bold ${canAfford ? 'text-green-600' : 'text-slate-400'}`}>{reward.cost} pts</span><button onClick={() => handleRedeem(reward)} disabled={!canAfford} className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${canAfford ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 shadow-md' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>{canAfford ? 'Resgatar' : <Lock size={14} />}</button></div></div>); })}</div>
     </div>
   );
@@ -209,7 +230,6 @@ export const Profile: React.FC = () => {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 mb-6 relative overflow-hidden">
             <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-bold shrink-0">{user.name ? user.name[0].toUpperCase() : 'U'}</div>
             <div className="overflow-hidden relative z-10"><h2 className="font-bold text-lg truncate flex items-center gap-2">{user.name}{isPremium && <Crown size={16} className="text-yellow-500 fill-yellow-500" />}</h2><p className="text-slate-500 text-sm truncate mb-1">{user.email}</p>
-            {/* NOVO: Exibe o nível ao lado do plano */}
             <div className="flex gap-2 mt-1">
                 <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold uppercase">{planDetails.name}</span>
                 <span className="text-xs bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded font-bold uppercase border border-yellow-200">{level.name}</span>

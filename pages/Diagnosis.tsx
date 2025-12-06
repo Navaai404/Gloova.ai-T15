@@ -55,6 +55,50 @@ export const Diagnosis: React.FC = () => {
       }
   }, []);
 
+  // REALTIME LISTENER: Escuta novos diagnósticos quando estiver analisando
+  useEffect(() => {
+    let channel: any;
+
+    if (step === 'analyzing') {
+        const userStr = localStorage.getItem('gloova_user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            
+            console.log("Escutando por novos diagnósticos...", user.id);
+
+            channel = supabase
+              .channel('diagnosis-complete')
+              .on(
+                'postgres_changes',
+                {
+                  event: 'INSERT',
+                  schema: 'public',
+                  table: 'diagnosticos',
+                  filter: `user_id=eq.${user.id}`,
+                },
+                (payload) => {
+                   console.log("Diagnóstico recebido via Realtime!", payload);
+                   if (payload.new && payload.new.resultado_json) {
+                       const newDiag = typeof payload.new.resultado_json === 'string' 
+                            ? JSON.parse(payload.new.resultado_json) 
+                            : payload.new.resultado_json;
+                       
+                       setResult(newDiag);
+                       localStorage.setItem('gloova_last_diagnosis', JSON.stringify(newDiag));
+                       setIsLoading(false);
+                       setStep('result');
+                   }
+                }
+              )
+              .subscribe();
+        }
+    }
+
+    return () => {
+        if (channel) supabase.removeChannel(channel);
+    };
+  }, [step]);
+
   const handlePhotoClick = (angle: any) => {
     setActiveAngle(angle);
     fileInputRef.current?.click();
@@ -121,19 +165,24 @@ export const Diagnosis: React.FC = () => {
         historico_usuario: null, 
         memory_key: user.memory_key || user.id, 
         quiz_data: finalQuizData,
-        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir ID, para o JSON stringify não remover a chave
         conversation_id: user.conversation_id || null
       };
 
+      // Chama N8N (O N8N vai processar e salvar no Supabase)
+      // O Realtime Listener acima vai pegar o resultado assim que o N8N salvar
+      // Mas mantemos a espera da resposta HTTP como fallback
       const diagnosis = await n8nService.submitDiagnosis(payload);
-      setResult(diagnosis);
-      setStep('result');
       
-      localStorage.setItem('gloova_last_diagnosis', JSON.stringify(diagnosis));
+      // Se o N8N responder direto, usa a resposta (Fallback)
+      if (diagnosis && diagnosis.analysis_text && !diagnosis.analysis_text.includes("Demo")) {
+          setResult(diagnosis);
+          setStep('result');
+          localStorage.setItem('gloova_last_diagnosis', JSON.stringify(diagnosis));
+      }
+      
       deductCredit('diagnosis');
       addPoints(POINTS.DIAGNOSIS);
 
-      // Lógica de recompensa por indicação (Mantida aqui para engajamento, mesmo se houver no pagamento)
       if (user.referred_by) {
         const isFirstTime = !localStorage.getItem('has_completed_first_diag');
         if (isFirstTime) {
@@ -144,10 +193,11 @@ export const Diagnosis: React.FC = () => {
       
     } catch (error) {
       console.error(error);
-      alert("Erro ao analisar. Tente novamente.");
-      setStep('photos');
+      // Não reseta se der erro de timeout, pois o Realtime pode salvar depois
+      // alert("Erro ao analisar. Tente novamente.");
+      // setStep('photos');
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false); // Mantém loading até o Realtime ou HTTP responder
     }
   };
 
@@ -171,7 +221,7 @@ export const Diagnosis: React.FC = () => {
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
          </div>
          <h2 className="text-2xl font-bold text-slate-900 mb-2">Analisando seu cabelo...</h2>
-         <p className="text-slate-500 max-w-xs">A IA está cruzando suas fotos com as respostas do quiz para criar o protocolo perfeito.</p>
+         <p className="text-slate-500 max-w-xs">A IA está processando suas fotos e gerando seu protocolo. Isso pode levar até 30 segundos.</p>
       </div>
     );
   }

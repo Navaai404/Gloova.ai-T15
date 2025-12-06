@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, ChevronRight, Check, X, Sparkles, ScanLine, Info, ArrowUpCircle, Lock, PlusCircle } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -15,19 +15,52 @@ export const Scan: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<ProductScanResult | null>(null);
   const [showIntro, setShowIntro] = useState(true);
+  
+  // Estado reativo para o usuário
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [canScan, setCanScan] = useState(false);
 
-  // Safe User Check
-  const getUser = (): UserProfile | null => {
-      try {
-          const userStr = localStorage.getItem('gloova_user');
-          return userStr ? JSON.parse(userStr) : null;
-      } catch {
-          return null;
-      }
-  };
+  useEffect(() => {
+    let channel: any;
+    const loadUser = () => {
+        const userStr = localStorage.getItem('gloova_user');
+        if (userStr) {
+            const parsedUser = JSON.parse(userStr);
+            setUser(parsedUser);
+            setCanScan(hasCredit(parsedUser, 'scan'));
+            return parsedUser;
+        }
+        return null;
+    };
 
-  const user = getUser();
-  const canScan = user ? hasCredit(user, 'scan') : false;
+    const currentUser = loadUser();
+
+    if (currentUser) {
+        // REALTIME LISTENER: Atualiza saldo de scan na hora
+        channel = supabase
+          .channel('scan-credits-update')
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${currentUser.id}` },
+            (payload) => {
+                console.log("Scan: Créditos atualizados!", payload);
+                if (payload.new) {
+                    const updatedUser = payload.new as UserProfile;
+                    setUser(updatedUser);
+                    localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
+                    setCanScan(hasCredit(updatedUser, 'scan'));
+                }
+            }
+          )
+          .subscribe();
+    }
+
+    window.addEventListener('points-updated', loadUser);
+    return () => {
+        window.removeEventListener('points-updated', loadUser);
+        if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,16 +89,10 @@ export const Scan: React.FC = () => {
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
         memory_key: user?.memory_key || 'temp',
-        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir, para não sumir do JSON
         conversation_id: user?.conversation_id || null
       };
 
       const scanResult = await n8nService.scanProduct(payload);
-      
-      // Se o N8N retornou um novo conversation_id (iniciou memória no scan), salva
-      // (Nota: ProductScanResult precisaria ter conversation_id na interface se o N8N retornar, 
-      // mas geralmente o Scan usa a memória apenas para leitura. Se retornar, podemos salvar).
-      
       setResult(scanResult);
       
       deductCredit('scan');
@@ -88,7 +115,7 @@ export const Scan: React.FC = () => {
     if (canScan) {
         fileInputRef.current?.click();
     } else {
-        navigate('/profile'); // Fallback redirection
+        navigate('/profile'); 
     }
   };
 
@@ -107,12 +134,18 @@ export const Scan: React.FC = () => {
                 Você utilizou todos os seus créditos de análise de produtos. Recarregue para continuar descobrindo o que é melhor para seu cabelo.
             </p>
             
-            <Button onClick={() => navigate('/profile')} className="shadow-purple-600/30 bg-purple-600 hover:bg-purple-700">
-                <div className="flex items-center gap-2">
-                    <span>Adicionar Scans</span>
-                    <PlusCircle size={20} />
+            <div className="flex flex-col gap-3 w-full">
+                <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                    <p className="text-xs font-bold text-purple-800 uppercase mb-1">Saldo Atual</p>
+                    <p className="text-2xl font-bold text-purple-600">{user.scan_credits || 0}</p>
                 </div>
-            </Button>
+                <Button onClick={() => navigate('/profile')} className="shadow-purple-600/30 bg-purple-600 hover:bg-purple-700">
+                    <div className="flex items-center gap-2">
+                        <span>Adicionar Scans</span>
+                        <PlusCircle size={20} />
+                    </div>
+                </Button>
+            </div>
         </div>
       );
   }

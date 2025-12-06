@@ -17,14 +17,17 @@ export const Chat: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
+    let chatChannel: any;
+    let profileChannel: any;
+
+    const loadDataAndSubscribe = async () => {
         const userStr = localStorage.getItem('gloova_user');
         if (userStr) {
             const parsedUser: UserProfile = JSON.parse(userStr);
             setUser(parsedUser);
             setCanChat(hasCredit(parsedUser, 'chat'));
 
-            // Carrega histórico do Supabase
+            // 1. Carrega histórico inicial
             try {
                 const { data, error } = await supabase
                     .from('chat_messages')
@@ -33,7 +36,6 @@ export const Chat: React.FC = () => {
                     .order('created_at', { ascending: true });
                 
                 if (data && data.length > 0) {
-                    // Mapeia do banco para o formato do chat
                     const history: ChatMessage[] = data.map(m => ({
                         id: m.id,
                         sender: m.sender,
@@ -42,7 +44,6 @@ export const Chat: React.FC = () => {
                     }));
                     setMessages(history);
                 } else {
-                    // Mensagem inicial se não houver histórico
                     setMessages([{
                       id: 'init',
                       sender: 'ai',
@@ -53,12 +54,61 @@ export const Chat: React.FC = () => {
             } catch (e) {
                 console.error("Erro ao carregar chat", e);
             }
+
+            // 2. Inscreve no Realtime para receber novas mensagens
+            chatChannel = supabase
+              .channel('chat-room')
+              .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `user_id=eq.${parsedUser.id}` },
+                (payload) => {
+                  const newMsg = payload.new;
+                  setMessages((prev) => {
+                    const exists = prev.some(m => m.id === newMsg.id); 
+                    if (!exists) {
+                        return [...prev, {
+                            id: newMsg.id,
+                            sender: newMsg.sender,
+                            text: newMsg.text,
+                            timestamp: new Date(newMsg.created_at)
+                        }];
+                    }
+                    return prev;
+                  });
+                }
+              )
+              .subscribe();
+
+            // 3. Inscreve no Realtime para atualizar CRÉDITOS
+            profileChannel = supabase
+              .channel('chat-credits-update')
+              .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${parsedUser.id}` },
+                (payload) => {
+                    console.log("Chat: Créditos atualizados!", payload);
+                    if (payload.new) {
+                        const updatedUser = payload.new as UserProfile;
+                        setUser(updatedUser);
+                        localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
+                        setCanChat(hasCredit(updatedUser, 'chat'));
+                    }
+                }
+              )
+              .subscribe();
         }
     };
 
-    loadData();
-    window.addEventListener('points-updated', loadData); // Re-check credits on update
-    return () => window.removeEventListener('points-updated', loadData);
+    loadDataAndSubscribe();
+    window.addEventListener('points-updated', () => {
+        const u = localStorage.getItem('gloova_user');
+        if (u) setCanChat(hasCredit(JSON.parse(u), 'chat'));
+    }); 
+    
+    return () => {
+        if (chatChannel) supabase.removeChannel(chatChannel);
+        if (profileChannel) supabase.removeChannel(profileChannel);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,7 +118,7 @@ export const Chat: React.FC = () => {
   }, [messages, isTyping]);
 
   const saveMessageToDb = async (userId: string, sender: 'user' | 'ai', text: string) => {
-      if (userId === 'guest' || userId.includes('demo')) return; // Não salva demo
+      if (userId === 'guest' || userId.includes('demo')) return;
       try {
           await supabase.from('chat_messages').insert({
               user_id: userId,
@@ -89,17 +139,18 @@ export const Chat: React.FC = () => {
     }
 
     const userText = input;
-    setInput(''); // Limpa input imediatamente
+    setInput(''); 
     
+    const tempId = Date.now().toString();
     const userMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: tempId, 
       sender: 'user',
       text: userText,
       timestamp: new Date()
     };
-
-    setMessages(prev => [...prev, userMsg]);
-    saveMessageToDb(user.id, 'user', userText); // Salva no banco
+    
+    setMessages(prev => [...prev, userMsg]); 
+    saveMessageToDb(user.id, 'user', userText);
     
     setIsTyping(true);
 
@@ -118,23 +169,19 @@ export const Chat: React.FC = () => {
       
       const aiResponseText = response.resposta;
       
-      // Atualiza memória se mudou
       if (response.conversation_id && response.conversation_id !== user.conversation_id) {
           const updatedUser = { ...user, conversation_id: response.conversation_id };
           setUser(updatedUser);
           localStorage.setItem('gloova_user', JSON.stringify(updatedUser));
-          
           if (user.id !== 'guest') {
-              supabase.from('profiles')
-                .update({ conversation_id: response.conversation_id })
-                .eq('id', user.id)
-                .then(() => console.log('Memory updated'));
+              supabase.from('profiles').update({ conversation_id: response.conversation_id }).eq('id', user.id).then();
           }
       }
       
-      // Cobra créditos
       const cost = calculateChatCost(aiResponseText.length);
       deductCredit('chat', cost);
+      
+      saveMessageToDb(user.id, 'ai', aiResponseText);
       
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -142,9 +189,8 @@ export const Chat: React.FC = () => {
         text: aiResponseText,
         timestamp: new Date()
       };
-
       setMessages(prev => [...prev, aiMsg]);
-      saveMessageToDb(user.id, 'ai', aiResponseText); // Salva resposta no banco
+      
       addPoints(POINTS.CHAT);
       
     } catch (error) {
