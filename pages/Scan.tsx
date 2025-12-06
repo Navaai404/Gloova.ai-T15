@@ -83,13 +83,18 @@ export const Scan: React.FC = () => {
       const storedDiag = localStorage.getItem('gloova_last_diagnosis');
       const diag: DiagnosisResult | null = storedDiag ? JSON.parse(storedDiag) : null;
       
+      // Garante que o ID seja enviado, mesmo que user state falhe momentaneamente
+      const currentUserStr = localStorage.getItem('gloova_user');
+      const currentUser = user || (currentUserStr ? JSON.parse(currentUserStr) : { id: 'guest' });
+
       const payload = {
-        user_id: user?.id || 'guest',
+        user_id: currentUser.id,
         image_base64: imagePreview,
         diagnostico_atual: diag,
         protocolo_30_dias: diag?.protocol_30_days,
-        memory_key: user?.memory_key || 'temp',
-        conversation_id: user?.conversation_id || null
+        memory_key: currentUser.memory_key || 'temp',
+        // CORREÇÃO CRÍTICA: Envia null explicitamente se não existir, para o N8N criar nova memória
+        conversation_id: currentUser.conversation_id || null
       };
 
       const scanResult = await n8nService.scanProduct(payload);
@@ -99,7 +104,8 @@ export const Scan: React.FC = () => {
       addPoints(POINTS.SCAN);
       
     } catch (error) {
-      alert("Erro ao analisar imagem.");
+      console.error(error);
+      alert("Erro ao analisar imagem. Verifique sua conexão.");
     } finally {
       setIsLoading(false);
     }

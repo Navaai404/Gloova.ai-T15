@@ -7,19 +7,18 @@ const DEFAULT_N8N_URL = 'https://n8neditor.comercialai.site/webhook-test/webhook
 // Busca URL dinâmica do Supabase (Configuração Global) ou Cache Local
 const getGatewayUrl = async (): Promise<string> => {
   try {
-    // 1. Tenta buscar do cache local (para velocidade)
+    // 1. Tenta buscar do cache local
     const cachedUrl = localStorage.getItem('gloova_config_n8n_url');
     if (cachedUrl) return cachedUrl;
 
     // 2. Se não tiver, busca do Supabase (Tabela Global)
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('app_settings')
         .select('value')
         .eq('id', 'n8n_url')
         .single();
     
     if (data && data.value) {
-        // Salva no cache para as próximas chamadas
         localStorage.setItem('gloova_config_n8n_url', data.value);
         return data.value;
     }
@@ -35,6 +34,7 @@ const getFetchUrlAndHeaders = (targetUrl: string) => {
   const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
 
   if (isProduction) {
+    console.log(`🔄 Usando Proxy Vercel para: ${targetUrl}`); // DEBUG LOG
     return {
       url: '/api/proxy',
       headers: {
@@ -43,6 +43,7 @@ const getFetchUrlAndHeaders = (targetUrl: string) => {
       }
     };
   } else {
+    console.log(`🔗 Conexão Direta (Localhost) para: ${targetUrl}`); // DEBUG LOG
     return {
       url: targetUrl,
       headers: {
@@ -61,9 +62,11 @@ export interface CheckoutResponse {
 
 export const n8nService = {
   async submitDiagnosis(payload: N8NDiagnosisPayload): Promise<DiagnosisResult> {
-    const targetUrl = await getGatewayUrl(); // Agora é async
+    const targetUrl = await getGatewayUrl(); 
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
     
+    console.log(`🚀 Enviando Diagnóstico para: ${url}`); // DEBUG LOG
+
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -86,6 +89,8 @@ export const n8nService = {
     const targetUrl = await getGatewayUrl();
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
 
+    console.log(`🚀 Enviando Scan para: ${url}`); // DEBUG LOG
+
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -96,6 +101,7 @@ export const n8nService = {
       if (!response.ok) throw new Error(`N8N Error: ${response.status}`);
       return await response.json() as ProductScanResult;
     } catch (error) {
+      console.error("Scan Error:", error);
       return mockScanResponse(Math.random() > 0.3);
     }
   },
@@ -103,6 +109,8 @@ export const n8nService = {
   async sendChatMessage(payload: N8NChatPayload): Promise<{ resposta: string, conversation_id?: string }> {
     const targetUrl = await getGatewayUrl();
     const { url, headers } = getFetchUrlAndHeaders(targetUrl);
+
+    console.log(`🚀 Enviando Chat para: ${url}`); // DEBUG LOG
 
     try {
       const response = await fetch(url, {
